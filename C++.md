@@ -1377,6 +1377,89 @@ gcc .c -o target -l pthread
 >
 > 线程将面积回传给主线程
 
+```C++
+#include <stdio.h>
+#inlcude <string.h>
+#include <pthread.h>
+##include <unstd.h>
+#define pai 3.14
+double s = 0; //定义全局变量
+//内核调用线程过程函数area 而不是main函数 故而在返回时 main函数无法接收area函数的返回值
+void* area(void* arg){
+  double r = *(double*)arg;
+  s = pai * r * r;
+  return NULL;
+}
+
+int main(void){
+  pthread_t tid;
+  double r = 10;
+  pthread_create(&tid, NULL, area, &r);
+  return 0;
+} //也可以通过修改arg的值将圆的面积返回main
+//在子线程中定义静态变量 表示函数结束时 该变量的内存不回收 但是仍然无法在main函数中访问子线程的变量
+```
+
+> 计算两个数字的平均数
+
+```C++
+#include <stdio.h>
+#inlcude <string.h>
+#include <pthread.h>
+##include <unstd.h>
+
+void* aver(void* arg){
+  double *d = (double*)arg;
+  //*d == d[0]
+  //*(d+1) == d[1]
+  d[2] = (d[0] + d[1]) / 2;
+  return NULL;
+}
+
+int main(void*)
+{
+  pthread_t tid;
+  double data[3] = {3, 7};
+  pthread_create(&tid, NULL, area, &data);
+  printf("%d", data[2]);
+  return 0;
+}
+
+//指针的类型决定了 该指针访问内存时读取几个字节 所有类型的指针的容量都是固定的  唯一的区别是访问内存时所读取的字节数
+```
+
+
+
+### 汇合线程
+
+![image-20240121182247024](C++.assets/image-20240121182247024.png)
+
+![image-20240121182524875](C++.assets/image-20240121182524875.png)
+
+将线程返回的指针地址 放入到 retval 二级指针中
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
