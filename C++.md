@@ -2738,252 +2738,6 @@ int main(int argc, char* argv[]) //命令行参数 输入百度域名地址 百�
 
 \r\n  == ^M
 
-
-
-
-
-
-
-
-
-
-
-# WEB服务器项目
-
-## 项目开发流程
-
-1.需求分析
-
-- 做什么东西 实现什么功能  达到什么效果 解决什么问题
-- 需求分析文档  （业务 产品经理）
-
-2.概要设计
-
-- 采用什么框架  技术 结构 技术选型 语言 平台
-- 技术大牛  技术水平高 高级程序员 架构师
-
-3.制定计划
-
-- 评估投入和产出 编写研发计划
-
-4.详细设计
-
-- 设计类 功能模块的细节 文件 库 函数 数据类型
-
-5.编写代码
-
-- 根据详细设计 给出代码实现
-
-6.系统测试
-
-- 黑盒 白盒 灰盒
-
-7.发布产品
-
-8.项目总结
-
-### 需求分析
-
-基于HTTP协议的WEB服务器，提供静态页面的下载
-
-- 服务器和浏览器进行通信 传输层使用tcp  应用层 http 
-- 浏览器向服务器发送http请求 服务器对http请求进行解析 服务器接收请求后 对请求内容进行解析
-- 明确浏览器目的 服务器需要从请求中提取关键数据 
-- 判断对方所请求的文件是否存在 并确定类型 构造响应(响应头 响应体) 并回传给浏览器
-- 有 就回传  没有就404 支持并发访问(多线程访问)
-
-### 概要设计
-
-http模块 
-
-- 对http请求进行解析  
-  - 将关键信息提取 进行判断
-- 对http响应进行构造
-
-资源模块 
-
-- 判断文件是否存在 
-- 判断文件的类型
-
-通信模块 
-
-- 创建套接字 
-- 组织地址结构 
-- 绑定 
-- 监听 
-- 接收连接请求(与客户端建立tcp连接)
-- 接受http响应
-- 接收http请求
-
-信号模块
-
-- 忽略大部分信号
-- ctrl c  2号 15号信号
-
-线程模块
-
-- 负责和客户端通信
-
-服务器模块
-
-- 接收连接请求  创建线程
-
-主模块
-
-- main() 调用服务器模块
-
-
-
-从基础模块编写 大多数
-
-
-
-主模块 启动 服务器模块 服务器模块主要负责请求开线程
-
-线程模块借助通信模块 接受客户端发送的http请求
-
-线程模块借助http模块 对http请求进行解析
-
-线程模块借助资源模块 对文件进行判断
-
-线程模块借助http模块 构造响应
-
-线程模块借助通信模块 发送响应
-
-### 详细设计
-
-| 模块名     |      头文件      |   源文件   |           作用            |
-| ---------- | :--------------: | :--------: | :-----------------------: |
-| http模块   |      http.h      |   http.c   |         解析 构造         |
-| 通信模块   |     socket.h     |  socket.c  |        创建套接字         |
-| 资源模块   | resouce.h mime.h | resource.c | 文件传输 判断文件是否存在 |
-| 信号模块   |    signals.h     | signals.c  |       忽略部分信号        |
-| 线程模块   |     client.h     |  server.c  |       线程过程函数        |
-| 服务器模块 |     server.h     |  server.c  |         创建线程          |
-| 主模块     |        -         |   main.c   |      调用服务器模块       |
-
-#### http
-
-http.h
-
-```c++
-#ifndef __HTTP_H
-#define __HTTP_H
-
-#include <limits.h> //PATH_MAX
-#include <sys/types.h>
-
-//存储 解析后的数据
-typedef struct httpRequest{
-  char method[32];//请求方法 GET？POST？ DELETE？
-  char path[PATH_MAX + 1]; //资源路径 PATH_MAX 宏 系统中对一个路径所允许表示的最大程度
-	char protocol[32]; //协议版本
-  char connetction[32]; //连接状态
-}HTTP_REQUEST；
-
-//http请求的解析
-int parserRequest(const char* req, HTTP_REQUEST* hreq); //提取出的解析结果放入hreq
-//返回解析成功或者失败
-
-//构造响应头时需要的数据
-typedef struct httpRespond{
-  char protocol[32];//协议版本
-  int status;//状态码
-  char describe[128];//状态描述
-  char type[64]; //类型
-  off_t length;  //off_t表示文件长度
-  char connection[32]; //连接状态
-}HTTP_RESPOND;
-
-//http响应的构造
-int constructHead(const HTTP_RESPOND* hres, char* head);
-
-
-#endif //__HTTP_H
-```
-
-http.c
-
-![image-20240122170821401](C++.assets/image-20240122170821401.png)
-
-```c++
-#include "http.c"
-#include <sys/syscall.h> //返回线程ID
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-
-#define __USE_GNU //定义该宏后 才能使用strcasestr函数
-
-
-//解析http请求
-int parserRequest(const char*req, HTTP_REQUEST* hreq)
-{
-  //strtok
-  //split
-  //sscanf
-  sscanf(req, "%s%s%s", hreq->method, hreq->path, hreq->protocol);
-  //一段字符串中是否有某一小字符串 成功返回首字母的地址
-  strstr(req, "connection");
-  char* connection = strcasestr(req, "connection"); // 对connection大小写不敏感
- 	if(connection)
-  {
-    sscanf(connection, "%*s%s", hreq->connection); //%*s忽略该串 读但是不存
-  }
-  printf("%d. %ld > [%s][%s][%s][%s]\n",
-         getpid(),
-         syscall(SYS_gettid),
-         hreq->method, 
-         hreq->path,
-         hreq->protocol,
-         hreq->connection);
-  //判断请求方法
-if(strcasecmp(hreq->method, "get")) //比较串中有没有一个子串 且大小写不敏感
-{
-  printf("%d.%ld > 无效的方法\n", getpid(), syscall(SYS_gettid));
-  return -1;
-}
-  //判断协议版本 该协议版本既不是1.0 也不是1.1 error
-  if(strcasecmp(hreq->protocol, ""http/1.0) && strcasestr(hreq->protocol, "http/1.1")){
-    printf("%d.%ld > 无效协议\n", geipid(), syscall(SYS_gettid));
-    return -1;
-  }
-  
-  return 0;
-}
-
-
-//构造http响应
-
-int constructHead(const HTTP_RESPOND* hres, char* head){
-  char dateTime[32];
-  time_t now = time(NULL);
-  strftime(dataTIme, sizeof(dateTime), "%a %d %b %Y %T",gmtime(&now));
-  sprintf(head, "%s %d %s\r\n"
-         	"Server: LaozhangyoudianmenServer1.0\r\n"
-         	"Date: %s\r\n"
-          "Content-Type: %s\r\n"
-          "Content-Length: %ld\r\n"
-          "Connection: %s\r\n\r\n", hres->protocol,
-          hres->status,
-          hres->describe,
-          dataTime,
-          hres->type, 
-          hres->length, 
-          hres->connection);
-  return 0;
-}
-//没有头文件  gcc -c file.c 验证是否有语法错误
-```
-
-
-
-
-
-
-
-
-
 # 密码学
 
 ## OPENSSL加密的方式
@@ -3410,3 +3164,382 @@ HASH算法不能称为加密算法 因为加密后 不能还原
 
 因为在DES算法中 密文长度与明文长度相同 且每八位一组 64位刚好除尽 所以会添加八位校验位也就是72位 72位减去八位得64位
 
+
+
+
+
+
+
+# WEB服务器项目
+
+## 项目开发流程
+
+1.需求分析
+
+- 做什么东西 实现什么功能  达到什么效果 解决什么问题
+- 需求分析文档  （业务 产品经理）
+
+2.概要设计
+
+- 采用什么框架  技术 结构 技术选型 语言 平台
+- 技术大牛  技术水平高 高级程序员 架构师
+
+3.制定计划
+
+- 评估投入和产出 编写研发计划
+
+4.详细设计
+
+- 设计类 功能模块的细节 文件 库 函数 数据类型
+
+5.编写代码
+
+- 根据详细设计 给出代码实现
+
+6.系统测试
+
+- 黑盒 白盒 灰盒
+
+7.发布产品
+
+8.项目总结
+
+### 需求分析
+
+基于HTTP协议的WEB服务器，提供静态页面的下载
+
+- 服务器和浏览器进行通信 传输层使用tcp  应用层 http 
+- 浏览器向服务器发送http请求 服务器对http请求进行解析 服务器接收请求后 对请求内容进行解析
+- 明确浏览器目的 服务器需要从请求中提取关键数据 
+- 判断对方所请求的文件是否存在 并确定类型 构造响应(响应头 响应体) 并回传给浏览器
+- 有 就回传  没有就404 支持并发访问(多线程访问)
+
+### 概要设计
+
+http模块 
+
+- 对http请求进行解析  
+  - 将关键信息提取 进行判断
+- 对http响应进行构造
+
+资源模块 
+
+- 判断文件是否存在 
+- 判断文件的类型
+
+通信模块 
+
+- 创建套接字 
+- 组织地址结构 
+- 绑定 
+- 监听 
+- 接收连接请求(与客户端建立tcp连接)
+- 接受http响应
+- 接收http请求
+
+信号模块
+
+- 忽略大部分信号
+- ctrl c  2号 15号信号
+
+线程模块
+
+- 负责和客户端通信
+
+服务器模块
+
+- 接收连接请求  创建线程
+
+主模块
+
+- main() 调用服务器模块
+
+
+
+从基础模块编写 大多数
+
+
+
+主模块 启动 服务器模块 服务器模块主要负责请求开线程
+
+线程模块借助通信模块 接受客户端发送的http请求
+
+线程模块借助http模块 对http请求进行解析
+
+线程模块借助资源模块 对文件进行判断
+
+线程模块借助http模块 构造响应
+
+线程模块借助通信模块 发送响应
+
+### 详细设计
+
+| 模块名     |      头文件      |   源文件   |           作用            |
+| ---------- | :--------------: | :--------: | :-----------------------: |
+| http模块   |      http.h      |   http.c   |         解析 构造         |
+| 通信模块   |     socket.h     |  socket.c  |        创建套接字         |
+| 资源模块   | resouce.h mime.h | resource.c | 文件传输 判断文件是否存在 |
+| 信号模块   |    signals.h     | signals.c  |       忽略部分信号        |
+| 线程模块   |     client.h     |  server.c  |       线程过程函数        |
+| 服务器模块 |     server.h     |  server.c  |         创建线程          |
+| 主模块     |        -         |   main.c   |      调用服务器模块       |
+
+#### http
+
+http.h
+
+```c++
+#ifndef __HTTP_H
+#define __HTTP_H
+
+#include <limits.h> //PATH_MAX
+#include <sys/types.h>
+
+//存储 解析后的数据
+typedef struct httpRequest{
+  char method[32];//请求方法 GET？POST？ DELETE？
+  char path[PATH_MAX + 1]; //资源路径 PATH_MAX 宏 系统中对一个路径所允许表示的最大程度
+	char protocol[32]; //协议版本
+  char connetction[32]; //连接状态
+}HTTP_REQUEST；
+
+//http请求的解析
+int parserRequest(const char* req, HTTP_REQUEST* hreq); //提取出的解析结果放入hreq
+//返回解析成功或者失败
+
+//构造响应头时需要的数据
+typedef struct httpRespond{
+  char protocol[32];//协议版本
+  int status;//状态码
+  char describe[128];//状态描述
+  char type[64]; //类型
+  off_t length;  //off_t表示文件长度
+  char connection[32]; //连接状态
+}HTTP_RESPOND;
+
+//http响应的构造
+int constructHead(const HTTP_RESPOND* hres, char* head);
+
+
+#endif //__HTTP_H
+```
+
+http.c
+
+![image-20240122170821401](C++.assets/image-20240122170821401.png)
+
+```c++
+#include "http.c"
+#include <sys/syscall.h> //返回线程ID
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+#define __USE_GNU //定义该宏后 才能使用strcasestr函数
+
+
+//解析http请求
+int parserRequest(const char*req, HTTP_REQUEST* hreq)
+{
+  //strtok
+  //split
+  //sscanf
+  sscanf(req, "%s%s%s", hreq->method, hreq->path, hreq->protocol);
+  //一段字符串中是否有某一小字符串 成功返回首字母的地址
+  strstr(req, "connection");
+  char* connection = strcasestr(req, "connection"); // 对connection大小写不敏感
+ 	if(connection)
+  {
+    sscanf(connection, "%*s%s", hreq->connection); //%*s忽略该串 读但是不存
+  }
+  printf("%d. %ld > [%s][%s][%s][%s]\n",
+         getpid(),
+         syscall(SYS_gettid),
+         hreq->method, 
+         hreq->path,
+         hreq->protocol,
+         hreq->connection);
+  //判断请求方法
+if(strcasecmp(hreq->method, "get")) //比较串中有没有一个子串 且大小写不敏感
+{
+  printf("%d.%ld > 无效的方法\n", getpid(), syscall(SYS_gettid));
+  return -1;
+}
+  //判断协议版本 该协议版本既不是1.0 也不是1.1 error
+  if(strcasecmp(hreq->protocol, ""http/1.0) && strcasestr(hreq->protocol, "http/1.1")){
+    printf("%d.%ld > 无效协议\n", geipid(), syscall(SYS_gettid));
+    return -1;
+  }
+  
+  return 0;
+}
+
+
+//构造http响应
+
+int constructHead(const HTTP_RESPOND* hres, char* head){
+  char dateTime[32];
+  time_t now = time(NULL);
+  strftime(dataTIme, sizeof(dateTime), "%a %d %b %Y %T",gmtime(&now));
+  sprintf(head, "%s %d %s\r\n"
+         	"Server: LaozhangyoudianmenServer1.0\r\n"
+         	"Date: %s\r\n"
+          "Content-Type: %s\r\n"
+          "Content-Length: %ld\r\n"
+          "Connection: %s\r\n\r\n", hres->protocol,
+          hres->status,
+          hres->describe,
+          dataTime,
+          hres->type, 
+          hres->length, 
+          hres->connection);
+  return 0;
+}
+//没有头文件  gcc -c file.c 验证是否有语法错误
+```
+
+#### socket
+
+socket.h
+
+```c++
+#ifndef __SOCKET_H_
+#define __SOCKET_H_
+//初始化套接字
+
+int initSocket(short port);
+//接收客户端的连接请求
+int acceptClient(void);
+//接收http请求
+char* recvRequest(int conn); //动态分配将http解析后放入存储区返回存储区地址
+//发送http响应头
+int sendHead(int conn, const char* head);
+//发送http响应体
+int sendBody(int conn, const char* path);
+//关闭套接字
+void deinitSocket(void);
+
+
+#endif //__SOCKET_H_
+```
+
+socket.c
+
+```C++
+//通信模块实现
+#include "socket.h"
+#include <unistd.h>
+#include <fcntl.h> //open
+#include <sys/socket.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static int s_sock = -1; //侦听套接字 static 表示该全局变量  只能在本地源文件执行
+//该项目是由多个源文件组成的一个可执行文件  一个.c的源文件想要使用别的源文件的全局变量只需要做一个外部声明erxtern
+//表明该变量是在外部文件中声明的 该源文件只是做一个引用
+
+int initSocket(short port)
+{
+  printf("%d.%ld > 创建套接字\n", getpid(), syscall(SYS_gettid));
+  s_sock = socket(AF_INET, SOCK_STREAM, 0);
+	if(s_sock == -1)
+  {
+    perror("socket");
+    return -1;
+  }
+  
+  printf("%d.%ld > 设置套接字\n", getpid(), ysycall(SYS_gettid));
+  //服务器程序结束后 立马重启 bind函数有可能会报错(底层的套接字或者端口还没有释放，则绑定时出错)
+  //导致服务器程序重启失败
+  //所以需要对端口进行设置 允许端口可以绑定多个套接字 端口复用
+	if(setsockopt(s_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
+  {
+    perrror("setsockopt");
+    return -1;
+  }
+  printf("%d.%ld > 组织地址结构\n", getpid(), syscall(SYS_gettid));
+  struct sockaddr_in ser;
+  ser.sin_family = AF_INET;
+  ser.sin_prot = htons(port);
+  ser.sin_addr.s_addr = INADDR_ANY;
+  printf("%d.%ld > 绑定地址结构\n", getpid(), syscall(SYS_gettid));
+  if(bind(s_sock, (struct sockaddr*)&ser, sizeof(ser)) == -1)
+  {
+    perror("bind");
+    return -1;
+  }
+  printf("%d.%ld > 启动侦听\n", getpid(), syscall(SYS_gettid));
+  if(listen(s_sock, 1024) == -1)
+  {
+    perror("listen");
+    return -1;
+  }
+  return 0;
+}
+
+
+//接收客户端的连接请求
+int acceptClient(void)
+{
+  printf("%d.%ld > 等待客户机的连接\n", getpid(), syscall(SYS_gettid));
+  struct sockaddr_int cli; //用来输出客户端的地址结构
+  socklen_t len = sizeof(cli); //用来输出地址结构的大小
+  int accept(s_sock, (struct sockaddr*)&cli, &len);
+  if(conn == -1)
+  {
+    perror("accept");
+  	return -1;
+  }
+  printf("%d.%ld > 接收到客户端%s:%hu的连接\n", getpid(), syscall(SYS_gettid),
+        	inet_ntoa(cli.sin_sddr),
+          ntohs(cli.sin_port)
+        );
+  return conn;
+}
+
+
+//接收http请求
+char* recRequest(int conn)
+{ //由于未知请求的大小  所以容器采用vector的思路 但是每次扩大的大小为初始申请的缓冲区大小
+  //可抽象看做一个c语言实现vector容器 realloc
+  char* req = NULL; //记录动态分配存储区的首地址
+  ssize_t len = 0; //记录已经接收的总字节数
+  for(;;)
+  {
+    char buf[1024] = {};
+    ssize_t size = recv(conn, buf, sizeof(buf) - 1, 0);
+    if(size == -1)
+    {
+      perror("recv");
+      free(req);
+      return NULL;
+    }
+    if(size == 0) //recv关闭套接字 但数据可能未接收完
+    {
+      printf("%d.%ld > 客户端关闭连接\n", getpid(), syscall(SYS_gettid));
+      free(req);
+      return NULL;
+    }//应该判断接收数据有没有连续的\r\n\r\n
+    
+    req = realloc(req, len + size + 1); //扩大存储区
+    memcpy(req + len, buf, size + 1)//内存拷贝
+    len = len + size; //总长
+    
+    //如果请求中有\r\n\r\n代表接收完成
+    if(strstr(req, "\r\n\r\n"))
+    {
+      break;
+    }
+  }
+  return req;
+}
+
+```
+
+> setsockopt()
+>
+> getsockopt()
