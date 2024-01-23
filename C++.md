@@ -2913,6 +2913,9 @@ http.c
 #include <string.h>
 #include <time.h>
 
+#define __USE_GNU //定义该宏后 才能使用strcasestr函数
+
+
 //解析http请求
 int parserRequest(const char*req, HTTP_REQUEST* hreq)
 {
@@ -2920,8 +2923,57 @@ int parserRequest(const char*req, HTTP_REQUEST* hreq)
   //split
   //sscanf
   sscanf(req, "%s%s%s", hreq->method, hreq->path, hreq->protocol);
+  //一段字符串中是否有某一小字符串 成功返回首字母的地址
+  strstr(req, "connection");
+  char* connection = strcasestr(req, "connection"); // 对connection大小写不敏感
+ 	if(connection)
+  {
+    sscanf(connection, "%*s%s", hreq->connection); //%*s忽略该串 读但是不存
+  }
+  printf("%d. %ld > [%s][%s][%s][%s]\n",
+         getpid(),
+         syscall(SYS_gettid),
+         hreq->method, 
+         hreq->path,
+         hreq->protocol,
+         hreq->connection);
+  //判断请求方法
+if(strcasecmp(hreq->method, "get")) //比较串中有没有一个子串 且大小写不敏感
+{
+  printf("%d.%ld > 无效的方法\n", getpid(), syscall(SYS_gettid));
+  return -1;
+}
+  //判断协议版本 该协议版本既不是1.0 也不是1.1 error
+  if(strcasecmp(hreq->protocol, ""http/1.0) && strcasestr(hreq->protocol, "http/1.1")){
+    printf("%d.%ld > 无效协议\n", geipid(), syscall(SYS_gettid));
+    return -1;
+  }
+  
   return 0;
 }
+
+
+//构造http响应
+
+int constructHead(const HTTP_RESPOND* hres, char* head){
+  char dateTime[32];
+  time_t now = time(NULL);
+  strftime(dataTIme, sizeof(dateTime), "%a %d %b %Y %T",gmtime(&now));
+  sprintf(head, "%s %d %s\r\n"
+         	"Server: LaozhangyoudianmenServer1.0\r\n"
+         	"Date: %s\r\n"
+          "Content-Type: %s\r\n"
+          "Content-Length: %ld\r\n"
+          "Connection: %s\r\n\r\n", hres->protocol,
+          hres->status,
+          hres->describe,
+          dataTime,
+          hres->type, 
+          hres->length, 
+          hres->connection);
+  return 0;
+}
+//没有头文件  gcc -c file.c 验证是否有语法错误
 ```
 
 
