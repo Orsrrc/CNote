@@ -256,7 +256,9 @@ systemctl 是centos7特有的 status 在很多命令中都表示查看状态 fir
 
 
 
-# 二级指针
+# C语言知识点
+
+## 二级指针
 
 一个指针  保存一个指针的地址 而不是指针所指向的内容的地址
 
@@ -381,6 +383,26 @@ int main() {
     return 0;
 }
 ```
+
+## 联合体和结构体
+
+~~~C++
+union UN
+{
+	char a;
+  int b;
+} //联合体  a b共用同一块内存空间
+
+struct UN
+{
+	char a;
+  int b;
+}//结构体 a b 有各自独有的一块内存空间
+~~~
+
+
+
+
 
 
 
@@ -1428,15 +1450,58 @@ int main(void*)
 //指针的类型决定了 该指针访问内存时读取几个字节 所有类型的指针的容量都是固定的  唯一的区别是访问内存时所读取的字节数
 ```
 
-
-
 ### 汇合线程
 
 ![image-20240121182247024](C++.assets/image-20240121182247024.png)
 
 ![image-20240121182524875](C++.assets/image-20240121182524875.png)
 
-将线程返回的指针地址 放入到 retval 二级指针中
+将线程返回的指针地址 放入到 retval 二级指针中  接受一级指针的地址 用二级指针
+
+```c++
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#define PI 3.14
+
+//线程过程函数  计算圆的面积
+
+void* area(void* arg)
+{
+  double r = *(double*) arg;
+  double static s = PI * r * r; //由于s创建的时间比PI 
+  //与 r 的时间早 故而不可以用一个未定义的变量给一个已经定义的变量
+  double static s;
+  s = PI * r * r;
+  
+  //动态分配 内存回收时间由free来决定
+  double* s = (double*)malloc(sizeof(double));
+  *s = PI * r * r; //线程间不共享各自的资源 线程间未知对方的缓冲区的地址  因此不能操作对方的缓冲区
+  return &s;
+}
+
+
+int main(void)
+{
+  pthread_t tid;
+  double r = 10;
+  pthread_create(&tid, NULL, area, &r);
+  double* res;//输出线程过程函数的返回值
+  pthread_join(tid, (void**) &res); //二级指针是一个形参告诉用户这里需要放入指针的地址
+  
+  pthread_t tid2;
+  double r2 = 20;
+  pthread_create(&tid2, NULL, area, &r2);
+  double* res2;
+  pthread_join(tid, (void**)&res2);
+  
+  //若有两条线程  而s为static 则两个线程共享一个缓冲区s
+  
+  return 0;
+  
+}
+```
 
 
 
@@ -2683,13 +2748,181 @@ int main(int argc, char* argv[]) //命令行参数 输入百度域名地址 百�
 
 
 
+# WEB服务器项目
+
+## 项目开发流程
+
+1.需求分析
+
+- 做什么东西 实现什么功能  达到什么效果 解决什么问题
+- 需求分析文档  （业务 产品经理）
+
+2.概要设计
+
+- 采用什么框架  技术 结构 技术选型 语言 平台
+- 技术大牛  技术水平高 高级程序员 架构师
+
+3.制定计划
+
+- 评估投入和产出 编写研发计划
+
+4.详细设计
+
+- 设计类 功能模块的细节 文件 库 函数 数据类型
+
+5.编写代码
+
+- 根据详细设计 给出代码实现
+
+6.系统测试
+
+- 黑盒 白盒 灰盒
+
+7.发布产品
+
+8.项目总结
+
+### 需求分析
+
+基于HTTP协议的WEB服务器，提供静态页面的下载
+
+- 服务器和浏览器进行通信 传输层使用tcp  应用层 http 
+- 浏览器向服务器发送http请求 服务器对http请求进行解析 服务器接收请求后 对请求内容进行解析
+- 明确浏览器目的 服务器需要从请求中提取关键数据 
+- 判断对方所请求的文件是否存在 并确定类型 构造响应(响应头 响应体) 并回传给浏览器
+- 有 就回传  没有就404 支持并发访问(多线程访问)
+
+### 概要设计
+
+http模块 
+
+- 对http请求进行解析  
+  - 将关键信息提取 进行判断
+- 对http响应进行构造
+
+资源模块 
+
+- 判断文件是否存在 
+- 判断文件的类型
+
+通信模块 
+
+- 创建套接字 
+- 组织地址结构 
+- 绑定 
+- 监听 
+- 接收连接请求(与客户端建立tcp连接)
+- 接受http响应
+- 接收http请求
+
+信号模块
+
+- 忽略大部分信号
+- ctrl c  2号 15号信号
+
+线程模块
+
+- 负责和客户端通信
+
+服务器模块
+
+- 接收连接请求  创建线程
+
+主模块
+
+- main() 调用服务器模块
 
 
 
+从基础模块编写 大多数
 
 
 
+主模块 启动 服务器模块 服务器模块主要负责请求开线程
 
+线程模块借助通信模块 接受客户端发送的http请求
+
+线程模块借助http模块 对http请求进行解析
+
+线程模块借助资源模块 对文件进行判断
+
+线程模块借助http模块 构造响应
+
+线程模块借助通信模块 发送响应
+
+### 详细设计
+
+| 模块名     |      头文件      |   源文件   |           作用            |
+| ---------- | :--------------: | :--------: | :-----------------------: |
+| http模块   |      http.h      |   http.c   |         解析 构造         |
+| 通信模块   |     socket.h     |  socket.c  |        创建套接字         |
+| 资源模块   | resouce.h mime.h | resource.c | 文件传输 判断文件是否存在 |
+| 信号模块   |    signals.h     | signals.c  |       忽略部分信号        |
+| 线程模块   |     client.h     |  server.c  |       线程过程函数        |
+| 服务器模块 |     server.h     |  server.c  |         创建线程          |
+| 主模块     |        -         |   main.c   |      调用服务器模块       |
+
+#### http
+
+http.h
+
+```c++
+#ifndef __HTTP_H
+#define __HTTP_H
+
+#include <limits.h> //PATH_MAX
+#include <sys/types.h>
+
+//存储 解析后的数据
+typedef struct httpRequest{
+  char method[32];//请求方法 GET？POST？ DELETE？
+  char path[PATH_MAX + 1]; //资源路径 PATH_MAX 宏 系统中对一个路径所允许表示的最大程度
+	char protocol[32]; //协议版本
+  char connetction[32]; //连接状态
+}HTTP_REQUEST；
+
+//http请求的解析
+int parserRequest(const char* req, HTTP_REQUEST* hreq); //提取出的解析结果放入hreq
+//返回解析成功或者失败
+
+//构造响应头时需要的数据
+typedef struct httpRespond{
+  char protocol[32];//协议版本
+  int status;//状态码
+  char describe[128];//状态描述
+  char type[64]; //类型
+  off_t length;  //off_t表示文件长度
+  char connection[32]; //连接状态
+}HTTP_RESPOND;
+
+//http响应的构造
+int constructHead(const HTTP_RESPOND* hres, char* head);
+
+
+#endif //__HTTP_H
+```
+
+http.c
+
+![image-20240122170821401](C++.assets/image-20240122170821401.png)
+
+```c++
+#include "http.c"
+#include <sys/syscall.h> //返回线程ID
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+//解析http请求
+int parserRequest(const char*req, HTTP_REQUEST* hreq)
+{
+  //strtok
+  //split
+  //sscanf
+  sscanf(req, "%s%s%s", hreq->method, hreq->path, hreq->protocol);
+  return 0;
+}
+```
 
 
 
