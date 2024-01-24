@@ -1991,6 +1991,8 @@ UDP 默认8个字节 TCP IP 都默认为20个字节
 
 ## 函数
 
+### Socket()
+
 #include <sys/socket.h>
 
 int socket(int domain, int type, int protocol);
@@ -2016,15 +2018,41 @@ type 套接字类型
 
 当传入套接字在传输层以下  **那么需要用户指定每一层的协议CNVXZ,./**
 
-
-
-### 工作在物,./理层的套接字的应用
+#### 工作在物,./理层的套接字的应用
 
 由于物理层需要接收所有数据包 则可以用于抓包
 
 PF_PACKET 底层包的网络通信
 
 SOCK_RAW 创建在工作在传输层以下的套接字
+
+### Bind()
+
+**#include** **<sys/socket.h>**
+
+   int bind(int socket, const struct sockaddr *address, socklen_t address_len);
+
+**DESCRIPTION**
+
+   **bind**() assigns a name to an unnamed socket. When a socket is created with
+
+   socket(2) it exists in a name space (address family) but has no name assigned.
+
+   **bind**() requests that address be assigned to the socket.
+
+**NOTES**
+
+   Binding a name in the UNIX domain creates a socket in the file system that must be
+
+   **deleted by the caller when it is no longer needed (using unlink(2)).**
+
+   The rules used in name binding vary between communication domains. Consult the manual entries in section 4 for detailed information.
+
+**RETURN** **VALUES**
+
+   **Upon successful completion, a value of 0 is returned.** Otherwise, **a value of -1 is**  **returned** and the global integer variable errno is set to indicate the error.
+
+
 
 
 
