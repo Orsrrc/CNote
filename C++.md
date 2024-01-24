@@ -4396,7 +4396,7 @@ int main(int argc, char* argv[])
 
 //将所有的.o 与main.c 编译为webserver
 
-需要超级用户权限  由于使用端口复用
+ 由于使用端口复用 需要超级用户权限 
 
 
 
