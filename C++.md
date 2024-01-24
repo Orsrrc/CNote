@@ -1505,7 +1505,9 @@ int main(void)
 
 
 
+### 分离线程
 
+主线程不用管理子线程的回收 由内核回收
 
 
 
@@ -3538,8 +3540,865 @@ char* recRequest(int conn)
   return req;
 }
 
+
+//发送http响应头
+int sendHead(int conn, const char* head)
+{
+  if(send(conn, head, strlen(head), 0)  == -1)
+  {
+    perror("send");
+    return -1;
+  }
+  return 0;
+}
+
+//发送http响应体
+int sendBody(int conn, const char* path)
+{
+  //打开文件
+  int fd = open(path, O_RDONLY);
+  if(fd == -1)
+  {
+    perror("open");
+    return -1;
+  }
+  //循环读取并发送
+  char buf[1024];
+  ssize_t len;
+  while((len = read(fd, buf, sizeof(buf))) > 0)
+  {
+    if(send(conn, buf, len, 0) == -1)
+    {
+      perror("send");
+      return -1;
+    }
+  }
+  //循环结束, len>0 正常读完文件 len>1读取出错
+  if(len == -1)
+  {
+    perror("read");
+    return -1;
+  }
+  close(fd);
+  return 0;
+}
+
+//关闭套接字
+void deinitSocket(void)
+{
+	close(s_sock);
+  
+}
+
 ```
 
 > setsockopt()
 >
 > getsockopt()
+
+![image-20240124103720993](C++.assets/image-20240124103720993.png)
+
+> 在接收数据的时候 由于使用同一块缓冲区  可能会出现上述情况  上一次读取的数据长度大于本次读取长度  导致缓冲区中上一次读取的数据还存在于缓冲区中 但是在本次读取文件的过程中有一个文件结束符 \0 send函数发送过程中的大小为本次读取数据大小 即发送的数据仅为本次读取的数据
+>
+> 在处理时也可以多次初始化缓冲区 将buf放入循环中 但效率比只初始化一次差
+
+#### resource
+
+resource.h
+
+```c++
+//资源模块头文件
+
+#ifndef __RESOURCE_H_
+#define __RESOURCE_H_
+//判断文件是否存在 搜索资源
+int searchResouce(const char* path);
+
+//识别类型
+int identifyType(const char* path, char* type);
+
+#endif//__RESOURCE_H_
+```
+
+> www.baidu.com:8888/c/c.html? url 完整路径
+>
+> /c/c.html uri 资源路径
+
+
+
+文件类型判断
+
+```c++
+#ifndef _MIME_H
+#define _MIME_H
+
+static struct {
+	char suffix[256];
+	char type[256];
+}	s_mime[] = {
+	{"."       , "application/x-"                         },
+	{".*"      , "application/octet-stream"               },
+	{".001"    , "application/x-001"                      },
+	{".301"    , "application/x-301"                      },
+	{".323"    , "text/h323"                              },
+	{".906"    , "application/x-906"                      },
+	{".907"    , "drawing/907"                            },
+	{".acp"    , "audio/x-mei-aac"                        },
+	{".ai"     , "application/postscript"                 },
+	{".aif"    , "audio/aiff"                             },
+	{".aifc"   , "audio/aiff"                             },
+	{".aiff"   , "audio/aiff"                             },
+	{".a11"    , "application/x-a11"                      },
+	{".anv"    , "application/x-anv"                      },
+	{".apk"    , "application/vnd.android.package-archive"},
+	{".asa"    , "text/asa"                               },
+	{".asf"    , "video/x-ms-asf"                         },
+	{".asp"    , "text/asp"                               },
+	{".asx"    , "video/x-ms-asf"                         },
+	{".au"     , "audio/basic"                            },
+	{".avi"    , "video/avi"                              },
+	{".awf"    , "application/vnd.adobe.workflow"         },
+	{".biz"    , "text/xml"                               },
+	{".bmp"    , "application/x-bmp"                      },
+	{".bot"    , "application/x-bot"                      },
+	{".c4t"    , "application/x-c4t"                      },
+	{".c90"    , "application/x-c90"                      },
+	{".cal"    , "application/x-cals"                     },
+	{".cat"    , "application/vnd.ms-pki.seccat"          },
+	{".cdf"    , "application/x-netcdf"                   },
+	{".cdr"    , "application/x-cdr"                      },
+	{".cel"    , "application/x-cel"                      },
+	{".cer"    , "application/x-x509-ca-cert"             },
+	{".cg4"    , "application/x-g4"                       },
+	{".cgm"    , "application/x-cgm"                      },
+	{".cit"    , "application/x-cit"                      },
+	{".class"  , "java/*"                                 },
+	{".cml"    , "text/xml"                               },
+	{".cmp"    , "application/x-cmp"                      },
+	{".cmx"    , "application/x-cmx"                      },
+	{".cot"    , "application/x-cot"                      },
+	{".crl"    , "application/pkix-crl"                   },
+	{".crt"    , "application/x-x509-ca-cert"             },
+	{".csi"    , "application/x-csi"                      },
+	{".css"    , "text/css"                               },
+	{".cut"    , "application/x-cut"                      },
+	{".dbf"    , "application/x-dbf"                      },
+	{".dbm"    , "application/x-dbm"                      },
+	{".dbx"    , "application/x-dbx"                      },
+	{".dcd"    , "text/xml"                               },
+	{".dcx"    , "application/x-dcx"                      },
+	{".der"    , "application/x-x509-ca-cert"             },
+	{".dgn"    , "application/x-dgn"                      },
+	{".dib"    , "application/x-dib"                      },
+	{".dll"    , "application/x-msdownload"               },
+	{".doc"    , "application/msword"                     },
+	{".dot"    , "application/msword"                     },
+	{".drw"    , "application/x-drw"                      },
+	{".dtd"    , "text/xml"                               },
+	{".dwf"    , "application/x-dwf"                      },
+	{".dwg"    , "application/x-dwg"                      },
+	{".dxb"    , "application/x-dxb"                      },
+	{".dxf"    , "application/x-dxf"                      },
+	{".edn"    , "application/vnd.adobe.edn"              },
+	{".emf"    , "application/x-emf"                      },
+	{".eml"    , "message/rfc822"                         },
+	{".ent"    , "text/xml"                               },
+	{".epi"    , "application/x-epi"                      },
+	{".eps"    , "application/x-ps"                       },
+	{".eps"    , "application/postscript"                 },
+	{".etd"    , "application/x-ebx"                      },
+	{".exe"    , "application/x-msdownload"               },
+	{".fax"    , "image/fax"                              },
+	{".fdf"    , "application/vnd.fdf"                    },
+	{".fif"    , "application/fractals"                   },
+	{".fo"     , "text/xml"                               },
+	{".frm"    , "application/x-frm"                      },
+	{".g4"     , "application/x-g4"                       },
+	{".gbr"    , "application/x-gbr"                      },
+	{".gif"    , "image/gif"                              },
+	{".gl2"    , "application/x-gl2"                      },
+	{".gp4"    , "application/x-gp4"                      },
+	{".hgl"    , "application/x-hgl"                      },
+	{".hmr"    , "application/x-hmr"                      },
+	{".hpg"    , "application/x-hpgl"                     },
+	{".hpl"    , "application/x-hpl"                      },
+	{".hqx"    , "application/mac-binhex40"               },
+	{".hrf"    , "application/x-hrf"                      },
+	{".hta"    , "application/hta"                        },
+	{".htc"    , "text/x-component"                       },
+	{".htm"    , "text/html"                              },
+	{".html"   , "text/html"                              },
+	{".htt"    , "text/webviewhtml"                       },
+	{".htx"    , "text/html"                              },
+	{".icb"    , "application/x-icb"                      },
+	{".ico"    , "image/x-icon"                           },
+	{".iff"    , "application/x-iff"                      },
+	{".ig4"    , "application/x-g4"                       },
+	{".igs"    , "application/x-igs"                      },
+	{".iii"    , "application/x-iphone"                   },
+	{".img"    , "application/x-img"                      },
+	{".ins"    , "application/x-internet-signup"          },
+	{".ipa"    , "application/vnd.iphone"                 },
+	{".isp"    , "application/x-internet-signup"          },
+	{".IVF"    , "video/x-ivf"                            },
+	{".java"   , "java/*"                                 },
+	{".jfif"   , "image/jpeg"                             },
+	{".jpe"    , "image/jpeg"                             },
+	{".jpeg"   , "image/jpeg"                             },
+	{".jpg"    , "image/jpeg"                             },
+	{".js"     , "application/x-javascript"               },
+	{".jsp"    , "text/html"                              },
+	{".la1"    , "audio/x-liquid-file"                    },
+	{".lar"    , "application/x-laplayer-reg"             },
+	{".latex"  , "application/x-latex"                    },
+	{".lavs"   , "audio/x-liquid-secure"                  },
+	{".lbm"    , "application/x-lbm"                      },
+	{".lmsff"  , "audio/x-la-lms"                         },
+	{".ls"     , "application/x-javascript"               },
+	{".ltr"    , "application/x-ltr"                      },
+	{".m1v"    , "video/x-mpeg"                           },
+	{".m2v"    , "video/x-mpeg"                           },
+	{".m3u"    , "audio/mpegurl"                          },
+	{".m4e"    , "video/mpeg4"                            },
+	{".mac"    , "application/x-mac"                      },
+	{".man"    , "application/x-troff-man"                },
+	{".math"   , "text/xml"                               },
+	{".mdb"    , "application/msaccess"                   },
+	{".mfp"    , "application/x-shockwave-flash"          },
+	{".mht"    , "message/rfc822"                         },
+	{".mhtml"  , "message/rfc822"                         },
+	{".mi"     , "application/x-mi"                       },
+	{".mid"    , "audio/mid"                              },
+	{".midi"   , "audio/mid"                              },
+	{".mil"    , "application/x-mil"                      },
+	{".mml"    , "text/xml"                               },
+	{".mnd"    , "audio/x-musicnet-download"              },
+	{".mns"    , "audio/x-musicnet-stream"                },
+	{".mocha"  , "application/x-javascript"               },
+	{".movie"  , "video/x-sgi-movie"                      },
+	{".mp1"    , "audio/mp1"                              },
+	{".mp2"    , "audio/mp2"                              },
+	{".mp2v"   , "video/mpeg"                             },
+	{".mp3"    , "audio/mp3"                              },
+	{".mp4"    , "video/mpeg4"                            },
+	{".mpa"    , "video/x-mpg"                            },
+	{".mpd"    , "application/vnd.ms-project"             },
+	{".mpe"    , "video/x-mpeg"                           },
+	{".mpeg"   , "video/mpg"                              },
+	{".mpg"    , "video/mpg"                              },
+	{".mpga"   , "audio/rn-mpeg"                          },
+	{".mpp"    , "application/vnd.ms-project"             },
+	{".mps"    , "video/x-mpeg"                           },
+	{".mpt"    , "application/vnd.ms-project"             },
+	{".mpv"    , "video/mpg"                              },
+	{".mpv2"   , "video/mpeg"                             },
+	{".mpw"    , "application/vnd.ms-project"             },
+	{".mpx"    , "application/vnd.ms-project"             },
+	{".mtx"    , "text/xml"                               },
+	{".mxp"    , "application/x-mmxp"                     },
+	{".net"    , "image/pnetvue"                          },
+	{".nrf"    , "application/x-nrf"                      },
+	{".nws"    , "message/rfc822"                         },
+	{".odc"    , "text/x-ms-odc"                          },
+	{".out"    , "application/x-out"                      },
+	{".p10"    , "application/pkcs10"                     },
+	{".p12"    , "application/x-pkcs12"                   },
+	{".p7b"    , "application/x-pkcs7-certificates"       },
+	{".p7c"    , "application/pkcs7-mime"                 },
+	{".p7m"    , "application/pkcs7-mime"                 },
+	{".p7r"    , "application/x-pkcs7-certreqresp"        },
+	{".p7s"    , "application/pkcs7-signature"            },
+	{".pc5"    , "application/x-pc5"                      },
+	{".pci"    , "application/x-pci"                      },
+	{".pcl"    , "application/x-pcl"                      },
+	{".pcx"    , "application/x-pcx"                      },
+	{".pdf"    , "application/pdf"                        },
+	{".pdx"    , "application/vnd.adobe.pdx"              },
+	{".pfx"    , "application/x-pkcs12"                   },
+	{".pgl"    , "application/x-pgl"                      },
+	{".pic"    , "application/x-pic"                      },
+	{".pko"    , "application/vnd.ms-pki.pko"             },
+	{".pl"     , "application/x-perl"                     },
+	{".plg"    , "text/html"                              },
+	{".pls"    , "audio/scpls"                            },
+	{".plt"    , "application/x-plt"                      },
+	{".png"    , "image/png"                              },
+	{".pot"    , "application/vnd.ms-powerpoint"          },
+	{".ppa"    , "application/vnd.ms-powerpoint"          },
+	{".ppm"    , "application/x-ppm"                      },
+	{".pps"    , "application/vnd.ms-powerpoint"          },
+	{".ppt"    , "application/vnd.ms-powerpoint"          },
+	{".ppt"    , "application/x-ppt"                      },
+	{".pr"     , "application/x-pr"                       },
+	{".prf"    , "application/pics-rules"                 },
+	{".prn"    , "application/x-prn"                      },
+	{".prt"    , "application/x-prt"                      },
+	{".ps"     , "application/x-ps"                       },
+	{".ps"     , "application/postscript"                 },
+	{".ptn"    , "application/x-ptn"                      },
+	{".pwz"    , "application/vnd.ms-powerpoint"          },
+	{".r3t"    , "text/vnd.rn-realtext3d"                 },
+	{".ra"     , "audio/vnd.rn-realaudio"                 },
+	{".ram"    , "audio/x-pn-realaudio"                   },
+	{".ras"    , "application/x-ras"                      },
+	{".rat"    , "application/rat-file"                   },
+	{".rdf"    , "text/xml"                               },
+	{".rec"    , "application/vnd.rn-recording"           },
+	{".red"    , "application/x-red"                      },
+	{".rgb"    , "application/x-rgb"                      },
+	{".rjs"    , "application/vnd.rn-realsystem-rjs"      },
+	{".rjt"    , "application/vnd.rn-realsystem-rjt"      },
+	{".rlc"    , "application/x-rlc"                      },
+	{".rle"    , "application/x-rle"                      },
+	{".rm"     , "application/vnd.rn-realmedia"           },
+	{".rmf"    , "application/vnd.adobe.rmf"              },
+	{".rmi"    , "audio/mid"                              },
+	{".rmj"    , "application/vnd.rn-realsystem-rmj"      },
+	{".rmm"    , "audio/x-pn-realaudio"                   },
+	{".rmp"    , "application/vnd.rn-rn_music_package"    },
+	{".rms"    , "application/vnd.rn-realmedia-secure"    },
+	{".rmvb"   , "application/vnd.rn-realmedia-vbr"       },
+	{".rmx"    , "application/vnd.rn-realsystem-rmx"      },
+	{".rnx"    , "application/vnd.rn-realplayer"          },
+	{".rp"     , "image/vnd.rn-realpix"                   },
+	{".rpm"    , "audio/x-pn-realaudio-plugin"            },
+	{".rsml"   , "application/vnd.rn-rsml"                },
+	{".rt"     , "text/vnd.rn-realtext"                   },
+	{".rtf"    , "application/msword"                     },
+	{".rtf"    , "application/x-rtf"                      },
+	{".rv"     , "video/vnd.rn-realvideo"                 },
+	{".sam"    , "application/x-sam"                      },
+	{".sat"    , "application/x-sat"                      },
+	{".sdp"    , "application/sdp"                        },
+	{".sdw"    , "application/x-sdw"                      },
+	{".sis"    , "application/vnd.symbian.install"        },
+	{".sisx"   , "application/vnd.symbian.install"        },
+	{".sit"    , "application/x-stuffit"                  },
+	{".slb"    , "application/x-slb"                      },
+	{".sld"    , "application/x-sld"                      },
+	{".slk"    , "drawing/x-slk"                          },
+	{".smi"    , "application/smil"                       },
+	{".smil"   , "application/smil"                       },
+	{".smk"    , "application/x-smk"                      },
+	{".snd"    , "audio/basic"                            },
+	{".sol"    , "text/plain"                             },
+	{".sor"    , "text/plain"                             },
+	{".spc"    , "application/x-pkcs7-certificates"       },
+	{".spl"    , "application/futuresplash"               },
+	{".spp"    , "text/xml"                               },
+	{".ssm"    , "application/streamingmedia"             },
+	{".sst"    , "application/vnd.ms-pki.certstore"       },
+	{".stl"    , "application/vnd.ms-pki.stl"             },
+	{".stm"    , "text/html"                              },
+	{".sty"    , "application/x-sty"                      },
+	{".svg"    , "text/xml"                               },
+	{".swf"    , "application/x-shockwave-flash"          },
+	{".tdf"    , "application/x-tdf"                      },
+	{".tg4"    , "application/x-tg4"                      },
+	{".tga"    , "application/x-tga"                      },
+	{".tif"    , "image/tiff"                             },
+	{".tiff"   , "image/tiff"                             },
+	{".tld"    , "text/xml"                               },
+	{".top"    , "drawing/x-top"                          },
+	{".torrent", "application/x-bittorrent"               },
+	{".tsd"    , "text/xml"                               },
+	{".ttf"    , "application/font-woff"                  },
+	{".txt"    , "text/plain"                             },
+	{".uin"    , "application/x-icq"                      },
+	{".uls"    , "text/iuls"                              },
+	{".vcf"    , "text/x-vcard"                           },
+	{".vda"    , "application/x-vda"                      },
+	{".vdx"    , "application/vnd.visio"                  },
+	{".vml"    , "text/xml"                               },
+	{".vpg"    , "application/x-vpeg005"                  },
+	{".vsd"    , "application/vnd.visio"                  },
+	{".vsd"    , "application/x-vsd"                      },
+	{".vss"    , "application/vnd.visio"                  },
+	{".vst"    , "application/vnd.visio"                  },
+	{".vst"    , "application/x-vst"                      },
+	{".vsw"    , "application/vnd.visio"                  },
+	{".vsx"    , "application/vnd.visio"                  },
+	{".vtx"    , "application/vnd.visio"                  },
+	{".vxml"   , "text/xml"                               },
+	{".wav"    , "audio/wav"                              },
+	{".wax"    , "audio/x-ms-wax"                         },
+	{".wb1"    , "application/x-wb1"                      },
+	{".wb2"    , "application/x-wb2"                      },
+	{".wb3"    , "application/x-wb3"                      },
+	{".wbmp"   , "image/vnd.wap.wbmp"                     },
+	{".wiz"    , "application/msword"                     },
+	{".wk3"    , "application/x-wk3"                      },
+	{".wk4"    , "application/x-wk4"                      },
+	{".wkq"    , "application/x-wkq"                      },
+	{".wks"    , "application/x-wks"                      },
+	{".wm"     , "video/x-ms-wm"                          },
+	{".wma"    , "audio/x-ms-wma"                         },
+	{".wmd"    , "application/x-ms-wmd"                   },
+	{".wmf"    , "application/x-wmf"                      },
+	{".wml"    , "text/vnd.wap.wml"                       },
+	{".wmv"    , "video/x-ms-wmv"                         },
+	{".wmx"    , "video/x-ms-wmx"                         },
+	{".wmz"    , "application/x-ms-wmz"                   },
+	{".wp6"    , "application/x-wp6"                      },
+	{".wpd"    , "application/x-wpd"                      },
+	{".wpg"    , "application/x-wpg"                      },
+	{".wpl"    , "application/vnd.ms-wpl"                 },
+	{".wq1"    , "application/x-wq1"                      },
+	{".wri"    , "application/x-wri"                      },
+	{".wrk"    , "application/x-wrk"                      },
+	{".wr1"    , "application/x-wr1"                      },
+	{".ws"     , "application/x-ws"                       },
+	{".ws2"    , "application/x-ws"                       },
+	{".wsc"    , "text/scriptlet"                         },
+	{".wsdl"   , "text/xml"                               },
+	{".wvx"    , "video/x-ms-wvx"                         },
+	{".xap"    , "application/x-silverlight-app"          },
+	{".xdp"    , "application/vnd.adobe.xdp"              },
+	{".xdr"    , "text/xml"                               },
+	{".xfd"    , "application/vnd.adobe.xfd"              },
+	{".xfdf"   , "application/vnd.adobe.xfdf"             },
+	{".xhtml"  , "text/html"                              },
+	{".xls"    , "application/vnd.ms-excel"               },
+	{".xls"    , "application/x-xls"                      },
+	{".xlw"    , "application/x-xlw"                      },
+	{".xml"    , "text/xml"                               },
+	{".xpl"    , "audio/scpls"                            },
+	{".xq"     , "text/xml"                               },
+	{".xql"    , "text/xml"                               },
+	{".xquery" , "text/xml"                               },
+	{".xsd"    , "text/xml"                               },
+	{".xsl"    , "text/xml"                               },
+	{".xslt"   , "text/xml"                               },
+	{".xwd"    , "application/x-xwd"                      },
+	{".x_b"    , "application/x-x_b"                      },
+	{".x_t"    , "application/x-x_t"                      }
+};
+#endif // _MIME_H
+
+```
+
+resource.c
+
+```c++
+//资源管理模块实现
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <stdio.h>
+#include <string.h>
+#include "resource.h"
+#include "mime.h"
+
+//判断文件是否存在 ctrl n vim 下匹配
+int searchResource(const char* path)
+{
+  return access(path, R_OK); //判断文件是否有读的权限
+}
+
+//识别类型
+int identifyType(const char* path, char* type)
+{
+  // /home/c/error.html
+  //确定拓展名
+  char* syffix = strrchr(paht, '.');//倒序查询字符
+	if(syffix == NULL)
+  {
+    printf("%d.%ld > 无法获取拓展名\n", getpid(), syscall(SYS_gettid));
+  	return -1;
+  }
+  
+  for(int i = 0; i < sizeof(s_mime) / sizeof(s_mine[0]); i++) //数组的总大小 除以一个元素大小 为元素个数  默认数组已满
+  {
+    if(strcasecmp(suffix, s_sime[i].suffix) == 0)
+    {
+      strcpy(type, s_mime[i].type);
+      return 0; //匹配 返回type 字符串匹配
+    }
+	}
+  printf("%d.%ld > 不可识别的资源类型", getpid(), syscall(SYS_gettid));
+  return -1;
+}
+```
+
+#### signals
+
+signals.h
+
+```c++
+//信号模块头文件
+#ifndef __SIGNALS_H_
+#define __SIGNALS_H_
+
+//初始化信号， 忽略大部分
+int initSignals(void);
+
+#endif __SIGNALS_H_
+```
+
+signals.c
+
+```c++
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <signal.h>
+#include <stdio.h>
+#include "signals.h"
+
+//初始化信号
+int initSignals(void){}
+{
+  printf("%d.%ld > 忽略大部分信号\n", getpid(), syscall(SYS_gettid));
+  for(int signnum = SIGHUP; i < SIGRTAX; signnum++)
+  {
+    if(signnum != SIGINT && signnum != SIGTERM)
+    {
+      signal(signum, SIG_IGN); //当对9 19 号信号忽略时 signal函数会报错 但不会中断循环
+    }
+  }
+  return 0;
+}
+```
+
+![image-20240124114125537](C++.assets/image-20240124114125537.png)
+
+Linux source code web
+
+#### client
+
+client.h
+
+```c++
+//线程模块头文件
+#ifndef __CLIENT_H_
+#define __CLIENT_H_
+
+//线程过程函数 负责完成和客户端的通信 传入通信套接字 
+//需要对http请求头中提取的路径进行处理 通过字符串拼接 使得能够在本地找到对应的资源
+//返回在本地计算机中的路径
+//需要两个参数 传入结构体 线程过程函数的参数
+typedef struct clientArgs
+{
+  const char* home;//表示资源在本地存储的路径
+  int conn;//通信套接字
+}CA;
+
+void* client(void* arg);
+//整个线程模块不用向外传递数据 且一个服务器若由主线程去回收子线程资源 则会阻塞 在此期间无法接受通信套接字
+//故而应该将其设置为分离线程 线程资源的回收由内核来完成
+#endif // __CLIENT_H_
+```
+
+client.c
+
+```c++
+//实现线程模块
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/stat.h> //获取文件源数据
+#include <stdio.h>
+#include <stdlib.h>
+#include "http.h"
+#include "socket.h"
+#include "resouce.h"
+#include "client.h"
+
+//线程过程函数
+//CA ca;
+//pthread_create(&tid, NULL, client, &ca);
+void* client(void* arg)
+{
+  CA* ca(CA*) = (CA*)arg;
+  printf("%d.%ld > 客户机线程处理开始\n", getpid(), syscall(SYS_gettid));
+  for(;;)
+  {
+    printf("%d.%ld > 接收http请求\n", getpid(), syscall(SYS_gettid));
+    char* req = recvRequest(ca->conn);
+    if(req == NULL)
+    {
+      break; //线程接收失败 
+    }
+    printf("%d.%ld > 请求电文:\n%s\n", getpid(), syscall(SYS_gettid), req);
+    //解析请求
+    printf("%d.%ld > 解析请求\n", getpid(), syscall(SYS_gettid));
+    HTTP_REQUEST hreq = {}; //用来输出请求中的关键数据
+    if (parseRequest(req, &hreq) == -1)
+    {
+      free(req);//解析失败 释放存储区
+      req = NULL;
+      break;
+    }
+    free(req); //解析成功 释放存储区 由于关键数据已经提取出来 故而后面数据使用hreq结构体即可
+    req = NULL; //习惯 free后将指针置空
+    //路径处理
+    // /c/error.html 请求路径
+    // /home/tarena/2208/project/home 存储路径
+    // /home/tarena/2208/project/home/c/error.html 真实路径
+
+    char root[PATH_MAL + 1]; //存储路径
+    char path[PATH_MAX + 1]; //真实路径
+
+    strcpy(root, ca->home);
+    //若存储路径中最后有一个斜杠 请求路径开头有一个斜杠 则拼接后会产生两个斜杠 路径错误
+    if(root[strlen(root) - 1] == '/' && hreq.path[0] == '/')
+    {
+      root[strlen(root) - 1] = '\0'; //改为结束符
+    }
+    //拼接文件路径
+    strcpt(path,root);
+    strcat(path, hreq.path);
+    
+    //若请求 / 则应将index 首页响应返回
+    if(strcmp(hreq.path, '/') == 0)
+    {
+      // path == /home/tarena/2208/project/home/
+      // path = /home/tarena/2208/project/home/index.html
+      strcat(path, "index.html");
+    }
+    
+    //构造响应时所需的结构体
+    HTTP_RESPOND hres = {"HTTP/1.1", 200, "OK", "text/html"} //给结构体值赋值
+    
+    //搜索资源
+    if(searchResource(path) == -1)
+    {
+      hres.status = 404;
+      strcpy(hres.descibe, "NOT FOUND");
+      // 将路径改为 404.html 返回not found
+      // path = /home/tarena/2208/project/home/404.html
+      strcpy(path, root);
+      strcat(path, "/404.html");
+    }
+    else if(identifyType(path, hres.type) == -1)
+    { 
+      //找到文件 但未识别文件类型
+      hres.status = 404;
+      strcpy(hres.descibe, "NOT FOUND");
+      // 将路径改为 404.html 返回not found
+      // path = /home/tarena/2208/project/home/404.html
+      strcpy(path, root);
+      strcat(path, "/404.html");
+    }
+    //确定文件长度
+    struct stat st; //输出文件元数据
+    if(stat(path, &st) == -1)
+    {
+      perror("stat");
+      break;
+    }
+    hres.length = se.st_size;
+    //连接状态
+    if(strlen(hreq.connection))
+    {
+      strcpy(hres.connection, hreq.connection);
+    }
+    else if(strcasecmp(hreq.protocol, "http/1.0") == 0)
+    {
+      strcpy(hres.connection, "Close");
+    }
+    else 
+    {
+      strcpy(hres.connection, "Keep-alive");
+    }//根据http协议  1.0中 请求没有发送连接状态 默认为close
+    //1.1 中 默认为keep-alive
+		
+    //构造响应
+    printf("%d.%ld > 构造响应\n", getpid(), syscall(SYS_gettid));
+    char head[1024];
+    if(constructHead(&hres, head) == -1)
+    {
+      break;
+    }
+    printf("%d.%ld > 响应电文:\n%s\n", getpid(), syscall(SYS_gettid), head);
+    
+    //发送响应头
+    if(sendHead(ca->conn, head) == -1)
+    {
+      break;
+    }
+    //发送响应体
+  	if(sendBody(ca->conn, path) == -1)
+    {
+      break;
+    }
+    //如果连接状态是close则退出循环 
+    if(strcasecmp(hres.connection, "close") == -1 )
+    {
+      break;
+    }
+  }
+  //关闭通信套接字
+	close(ca->conn);
+  free(ca); //ca动态分配
+  printf("%d.%ld > 客户机线程处理结束\n", getpid(), syscall(SYS_gettid));
+  return NULL;
+}
+
+//GET / HTTP/1.1 请求首页文件
+//404文件
+```
+
+#### server
+
+server.h
+
+```c++
+#ifndef __SERVER_H_
+#define __SERVER_H_
+
+//初始化服务器 
+int initServer(short port);
+
+//运行服务器
+int runServer(const char* home);
+
+//关闭服务器
+void deinitServer(void);
+
+
+#endif //__SERVER_H_
+```
+
+> 参数 功能实施时需要啥
+>
+> - 数据
+> - 调用其他函数 该函数所需要的函数
+
+
+
+server.c
+
+```C++
+#include <unistd.h>
+#include <pthread.h>
+#include <sys/resource.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "socket.h"
+#include "signals.h"
+#include "client.h"
+#include "server.h"
+
+//初始化最大文件描述符
+static int initMaxFiles(void) //判断后赋值可以减少程序运行的负担  若在多次循环中 则会多次赋值
+{
+  //资源限制
+  struct rlimit rl;
+  if(getrlimit(RLIMIT_NOFILE, &rl) == -1) //获取资源限制数据
+  {
+    perror("getrlimit");
+    return -1;
+  }
+  if(rl.rlim_cur < rl.rlim_max ) // 当前进程文件描述符数 < 当前系统允许的最大进程描述符
+  { 
+    rl.rlim_cur = rl.rlim_max;
+    if(setrlimit(RLIMIT_NOFILE, &rl) == -1) //立即生效
+    {
+      perror("setrlimit");
+      return -1;
+    }
+  }
+  return 0;
+}
+//static 函数表明当前函数只能在当前文件中使用
+//在头文件声明的文件表明是给别的文件用的  该函数表明是在本文件程序中使用
+
+//初始化服务器
+int initServer(short port)
+{
+  //初始化最大文件描述符数
+  if(initMaxfiles() == -1)
+  {
+    return -1;
+  }
+  //初始化信号
+  if(initSignals() == -1)
+  {
+    return -1;
+  }
+  //初始化套接字
+  if(initSocket(port) == -1)
+  {
+    return -1;
+  }
+  return 0;
+}
+
+
+//运行服务器
+int runServer(const char* home)
+{
+  for(;;)
+  {
+    //接收客户端连接请求
+    int conn = acceptclient();
+    if(conn == -1)
+    {
+      return -1;
+    }
+    
+    //创建线程 具有分离属性
+    pthread_t tid;
+    pthread_attr_t attr; // 线程的属性
+    pthead_attr_init(&attr); //初始化
+    pthead_attr_setdetachstate(&attr, PTHEAD_CREATE_DETACHED); //把分离属性分配到变量attr中
+    CA* ca = malloc(sizeof(CA));
+    ca->conn = conn;
+    ca->home = home;
+    int error = pthread_create(&tid, &attr, client, ca);
+    if(error)
+    {
+      fprintf(stderr, "pthread_create:%s\n", strerror(error));
+      return -1;
+    }
+  }
+  return 0;
+}
+
+//关闭服务器
+void deinitServer(void)
+{
+  deinitSocket();
+  return 0;
+}
+
+```
+
+#### main
+
+```c++
+#include <stdio.h>
+#include <stdlib.h>
+#include "server.h"
+
+int main(int argc, char* argv[])
+{
+	// ./a.out port=80 path=../home
+  
+  //初始化服务器 
+  if(initServer(argc < 2 ? 80 : atoi(argv[1]) /*char-> ini*/) == -1)
+  {
+   	return -1;
+  }
+  
+ //运行服务器
+  if(runServer(argc < 3 ? "..home": argv[2]) == -1)
+  {
+    return -1;
+  }
+  
+  //关闭服务器
+  deinitServer();
+  return 0;
+}
+
+```
+
+**gcc main.c \*.o -o webserver -pthread**
+
+//将所有的.o 与main.c 编译为webserver
+
+需要超级用户权限  由于使用端口复用
+
+
+
+
+
