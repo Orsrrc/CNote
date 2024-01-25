@@ -1,261 +1,5 @@
 
 
-# Linux基础
-
- [Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf](pdf_note\Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf) 
-
-## Linux文件
-
-home 普通用户的家目录
-
-内建命令
-
-bash 解析命令 自带的命令
-
-外部命令
-
-外部软件 给的命令
-
-## Linux命令格式
-
-命令 选项（可以不要） 参数（可以没有）
-
-help + 内建命令
-
-外键命令 + --help
-
-## 帮助文档查看方法
-
-man + 命令/指令
-
-man 页数 命令/指令
-
-第一页是命令
-
-第二页是系统调用
-
-第三页是标准库
-
-例如printf 就是 man 3 printf
-
-## 编写C语言程序
-
-gcc编译器工具链
-
-(1) 生成gcc -E 预处理C文件 将导入的头文件 加载到C文件中
-
--o 决定预处理后的文件名称
-
-严格关注大小写
-
-（2）生成汇编文件
-
--S 预处理文件.i -o 指定文件名
-
-（3）生成目标
-
-gcc -c 文件名.s -o 指定目标文件名.o
-
-file + 文件名 可以查看文件类型
-
-LSB 小端模式 
-
-ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), not stripped 
-
-（4）生成可执行文件
-
-gcc 文件名.o -o hello
-
-执行文件 ./文件名
-
-**一部到位 gcc 文件名.c -o 文件名无后缀 等价于上面四步**
-
-### 静态连接和动态连接
-
-将头文件加入到文件中 属于从源文件到可执行文件的第一步
-
-未来不想给客户看到源代码 只提供这个功能 那么就需要将源代码写成库
-
-链接分为两种：**静态链接**、**动态链接**。
-
-**1）静态链接**
-
-静态链接：由链接器在链接时将库的内容加入到可执行程序中。
-
-优点：
-
-- 对运行环境的依赖性较小，具有较好的兼容性
-
- 缺点：
-
-- **生成的程序比较大**，需要更多的系统资源，**在装入内存时会消耗更多的时间**
-- **库函数有了更新，必须重新编译应用程序**
-
-**2）动态链接**
-
-动态链接：连接器在链接时仅仅建立与所需库函数的之间的链接关系，在程序运行时才将所需资源调入可执行程序。 
-
-优点：
-
-- 在需要的时候才会调入对应的资源函数
-- 简化程序的升级；有着较小的程序体积
-- 实现进程之间的资源共享（避免重复拷贝） 
-
-缺点：
-
-- 依赖动态库，不能独立运行
-- **动态库依赖版本问题严重**
-
-**3）静态、动态编译对比**
-
-前面我们编写的应用程序大量用到了标准库函数，系统**默认采用动态链接**的方式进行编译程序，若想采用静态编译，加入-static参数。
-
-gcc默认给的可执行文件为a.out
-
-![image-20221012161336927](C++.assets/image-20221012161336927.png)
-
-发现静态链接生成的大小要比动态链接 生成的可执行文件大了不止十倍
-
-cp 要复制的文件 生成的文件名
-
-### 一件替换文件中的所有代码
-
-**：%s/被替换的代码/替换后的代码/g（表示全部替换）**
-
-### 静态库和动态库的制作
-
-" " 优先搜索本地的文件
-
-<> 优先搜索标准库
-
-库分为三个部分
-
-前缀 中间 后缀
-
-libxxx.a
-
-（1）将C源文件生成对应的.o文件
-
-（2）用打包工具ar将.o文件打包为.a文件 libxxx.a
-
-> ar -rcs 库函数文件 要打包的.o文件
-
-.o文件时在生成可执行文件前的一部生成的文件 可以通过 gcc -c  源文件.c -o 目标文件名.o生成
-
-**在使用ar工具是时候需要添加参数：rcs**
-
-- r更新
-- c创建
-- s建立索引
-
-**2）静态库使用**
-
-静态库制作完成之后，需要将.a文件和头文件一起发布给用户。
-
-假设测试文件为main.c，静态库文件为libtest.a头文件为head.h
-
-编译命令：
-
-> deng@itcast:~/test/4static_test$ gcc  test.c -L./ -I./ -ltest -o test
-
-参数说明：
-
-- -L：表示要连接的库所在目录
-- -I./:  I(大写i) 表示指定头文件的目录为当前目录
-- -l(小写L)：指定链接时需要的库，去掉前缀和后缀
-
-生成的.a文件 是二进制文件 打开看不到信息
-
-### 动态库制作
-
-静态库需要加载入程序中 过于大 
-
-动态库通过链接 在程序需要的时候再加载
-
-动态库制作教程
-
-### 生成目标文件 
-
-**gcc -fPIC -c add.c** 
-
--c生成目标代码
-
-**-fPIC创建与地址无关的编译程序**
-
-**gcc -shared** 所有的 .o 文件 -o 输出文件名 lib文件名.so 注意后缀为.so
-
-指定库的文件的名字
-
-### 运行方式
-
-把头文件和库发布 以保护核心源代码
-
-gcc test.c -L. -I. -l(小写的L)库名称
-
-但是链接器无法找到库的位置
-
-有两种解决方式
-
-（1）将动态库文件放入到标准库文件中去 /lib（绝对路径）
-
-sudo cp 库文件 /lib
-
-(2)系统动态载入器
-
-在linux系统中编译.c文件生成的文件为.ELF文件格式
-
-对于elf格式的可执行程序，是由ld-linux.so*来完成的，它先后搜索elf文件的 DT_RPATH段 — 环境变量LD_LIBRARY_PATH — /etc/ld.so.cache文件列表 — **/lib/, /usr/lib**目录找到库文件后将其载入内存。
-
-我们可以通过对库文件的一个路径的添加来让程序找到我们的动态库文件
-
-- 临时设置LD_LIBRARY_PATH：
-
-​	export LD_LIBRARY_PATH=(不能添加空格)$LD_LIBRARY_PATH:库路径
-
-这样只能在程序进行测试的时候使用，因为这里是一个临时变量 从而导致在别的终端 别的服务器上不能运行这个程序
-
-所以我们需要进行永久设置
-
-可以通过对bash配置文件进行追加 绝对路径
-
-vim ~/ .bashrc
-
-source ~/ .bashrc
-
-
-
-## 网络常用命令
-
-ping:测试主机与网络 主机与主机之间的网络连通性
-
-ifconfig：配置和显示Linux系统网卡的网络参数
-
-常用于查看IP地址 后使用ssh协议进行连接
-
-route:显示并设置linux中静态路由表 /ru:t/
-
-netstat:net /steat/
-
-> netstat:用来打印Linux中网络系统的状态信息，可让你得知整个Linux系统的网络情况。
-
-kernel(内核)
-
-
-
-## centos7防火墙基本使用
-
-systemctl 是centos7特有的 status 在很多命令中都表示查看状态 firewall为防火墙 最后添加的d代表守护进程
-
-> \#防火墙是开启 systemctl start firewalld
->
-> #关闭防火墙 systemctl stop firewalld 
->
-> #查看防火墙状态 systemctl status firewalld 
->
-> #重启防火墙 systemctl restart firewalld
-
-
-
 # C语言知识点
 
 ## 二级指针
@@ -402,13 +146,281 @@ struct UN
 
 
 
+## goto
+
+```c
+again:
+		语句;
+		goto again;
+```
+
+![image-20240125130901399](C++.assets/image-20240125130901399.png)
+
+
+
+
+
+# Linux基础
+
+[Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf](pdf_note\Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf) 
+
+## Linux文件
+
+home 普通用户的家目录
+
+内建命令
+
+bash 解析命令 自带的命令
+
+外部命令
+
+外部软件 给的命令
+
+## Linux命令格式
+
+命令 选项（可以不要） 参数（可以没有）
+
+help + 内建命令
+
+外键命令 + --help
+
+## 帮助文档查看方法
+
+man + 命令/指令
+
+man 页数 命令/指令
+
+第一页是命令
+
+第二页是系统调用
+
+第三页是标准库
+
+例如printf 就是 man 3 printf
+
+## 编写C语言程序
+
+gcc编译器工具链
+
+(1) 生成gcc -E 预处理C文件 将导入的头文件 加载到C文件中
+
+-o 决定预处理后的文件名称
+
+严格关注大小写
+
+（2）生成汇编文件
+
+-S 预处理文件.i -o 指定文件名
+
+（3）生成目标
+
+gcc -c 文件名.s -o 指定目标文件名.o
+
+file + 文件名 可以查看文件类型
+
+LSB 小端模式 
+
+ELF 64-bit LSB relocatable, x86-64, version 1 (SYSV), not stripped 
+
+（4）生成可执行文件
+
+gcc 文件名.o -o hello
+
+执行文件 ./文件名
+
+**一部到位 gcc 文件名.c -o 文件名无后缀 等价于上面四步**
+
+### 静态连接和动态连接
+
+将头文件加入到文件中 属于从源文件到可执行文件的第一步
+
+未来不想给客户看到源代码 只提供这个功能 那么就需要将源代码写成库
+
+链接分为两种：**静态链接**、**动态链接**。
+
+**1）静态链接**
+
+静态链接：由链接器在链接时将库的内容加入到可执行程序中。
+
+优点：
+
+- 对运行环境的依赖性较小，具有较好的兼容性
+
+缺点：
+
+- **生成的程序比较大**，需要更多的系统资源，**在装入内存时会消耗更多的时间**
+- **库函数有了更新，必须重新编译应用程序**
+
+**2）动态链接**
+
+动态链接：连接器在链接时仅仅建立与所需库函数的之间的链接关系，在程序运行时才将所需资源调入可执行程序。 
+
+优点：
+
+- 在需要的时候才会调入对应的资源函数
+- 简化程序的升级；有着较小的程序体积
+- 实现进程之间的资源共享（避免重复拷贝） 
+
+缺点：
+
+- 依赖动态库，不能独立运行
+- **动态库依赖版本问题严重**
+
+**3）静态、动态编译对比**
+
+前面我们编写的应用程序大量用到了标准库函数，系统**默认采用动态链接**的方式进行编译程序，若想采用静态编译，加入-static参数。
+
+gcc默认给的可执行文件为a.out
+
+![image-20221012161336927](C++.assets/image-20221012161336927.png)
+
+发现静态链接生成的大小要比动态链接 生成的可执行文件大了不止十倍
+
+cp 要复制的文件 生成的文件名
+
+### 一件替换文件中的所有代码
+
+**：%s/被替换的代码/替换后的代码/g（表示全部替换）**
+
+### 静态库和动态库的制作
+
+" " 优先搜索本地的文件
+
+<> 优先搜索标准库
+
+库分为三个部分
+
+前缀 中间 后缀
+
+libxxx.a
+
+（1）将C源文件生成对应的.o文件
+
+（2）用打包工具ar将.o文件打包为.a文件 libxxx.a
+
+> ar -rcs 库函数文件 要打包的.o文件
+
+.o文件时在生成可执行文件前的一部生成的文件 可以通过 gcc -c  源文件.c -o 目标文件名.o生成
+
+**在使用ar工具是时候需要添加参数：rcs**
+
+- r更新
+- c创建
+- s建立索引
+
+**2）静态库使用**
+
+静态库制作完成之后，需要将.a文件和头文件一起发布给用户。
+
+假设测试文件为main.c，静态库文件为libtest.a头文件为head.h
+
+编译命令：
+
+> deng@itcast:~/test/4static_test$ gcc  test.c -L./ -I./ -ltest -o test
+
+参数说明：
+
+- -L：表示要连接的库所在目录
+- -I./:  I(大写i) 表示指定头文件的目录为当前目录
+- -l(小写L)：指定链接时需要的库，去掉前缀和后缀
+
+生成的.a文件 是二进制文件 打开看不到信息
+
+### 动态库制作
+
+静态库需要加载入程序中 过于大 
+
+动态库通过链接 在程序需要的时候再加载
+
+动态库制作教程
+
+### 生成目标文件 
+
+**gcc -fPIC -c add.c** 
+
+-c生成目标代码
+
+**-fPIC创建与地址无关的编译程序**
+
+**gcc -shared** 所有的 .o 文件 -o 输出文件名 lib文件名.so 注意后缀为.so
+
+指定库的文件的名字
+
+### 运行方式
+
+把头文件和库发布 以保护核心源代码
+
+gcc test.c -L. -I. -l(小写的L)库名称
+
+但是链接器无法找到库的位置
+
+有两种解决方式
+
+（1）将动态库文件放入到标准库文件中去 /lib（绝对路径）
+
+sudo cp 库文件 /lib
+
+(2)系统动态载入器
+
+在linux系统中编译.c文件生成的文件为.ELF文件格式
+
+对于elf格式的可执行程序，是由ld-linux.so*来完成的，它先后搜索elf文件的 DT_RPATH段 — 环境变量LD_LIBRARY_PATH — /etc/ld.so.cache文件列表 — **/lib/, /usr/lib**目录找到库文件后将其载入内存。
+
+我们可以通过对库文件的一个路径的添加来让程序找到我们的动态库文件
+
+- 临时设置LD_LIBRARY_PATH：
+
+export LD_LIBRARY_PATH=(不能添加空格)$LD_LIBRARY_PATH:库路径
+
+这样只能在程序进行测试的时候使用，因为这里是一个临时变量 从而导致在别的终端 别的服务器上不能运行这个程序
+
+所以我们需要进行永久设置
+
+可以通过对bash配置文件进行追加 绝对路径
+
+vim ~/ .bashrc
+
+source ~/ .bashrc
+
+
+
+## 网络常用命令
+
+ping:测试主机与网络 主机与主机之间的网络连通性
+
+ifconfig：配置和显示Linux系统网卡的网络参数
+
+常用于查看IP地址 后使用ssh协议进行连接
+
+route:显示并设置linux中静态路由表 /ru:t/
+
+netstat:net /steat/
+
+> netstat:用来打印Linux中网络系统的状态信息，可让你得知整个Linux系统的网络情况。
+
+kernel(内核)
+
+
+
+## centos7防火墙基本使用
+
+systemctl 是centos7特有的 status 在很多命令中都表示查看状态 firewall为防火墙 最后添加的d代表守护进程
+
+> \#防火墙是开启 systemctl start firewalld
+>
+> #关闭防火墙 systemctl stop firewalld 
+>
+> #查看防火墙状态 systemctl status firewalld 
+>
+> #重启防火墙 systemctl restart firewalld
+
 
 
 
 
 # MakeFile
 
- [Linux系统编程-第03天（makefile-文件IO）.pdf](pdf_note\Linux系统编程-第03天（makefile-文件IO）.pdf) 
+[Linux系统编程-第03天（makefile-文件IO）.pdf](pdf_note\Linux系统编程-第03天（makefile-文件IO）.pdf) 
 
 ## 语法
 
@@ -444,7 +456,7 @@ make -f name.mk
 
 make命令格式：
 
-​	make [ -f file ][ options ][ targets ]
+make [ -f file ][ options ][ targets ]
 
 make 默认在工作目录中寻找名为GNUmakefile、makefile、Makefile的文件作为输入文件
 
@@ -894,9 +906,9 @@ implicit declaation of function '函数名' 代表 ( 函数的隐式解密 )函�
 
 读常规文件是不会阻塞的，不管读多少字节，read一定会在有限的时间内返回。
 
-​	从终端设备或网络读则不一定，如果从终端输入的数据没有换行符，调用read读终端设备就会阻塞，如果网络上没有接收到数据包，调用read从网络读就会阻塞，至于会阻塞多长时间也是不确定的，如果一直没有数据到达就一直阻塞在那里。
+从终端设备或网络读则不一定，如果从终端输入的数据没有换行符，调用read读终端设备就会阻塞，如果网络上没有接收到数据包，调用read从网络读就会阻塞，至于会阻塞多长时间也是不确定的，如果一直没有数据到达就一直阻塞在那里。
 
-​	同样，写常规文件是不会阻塞的，而向终端设备或网络写则不一定。
+同样，写常规文件是不会阻塞的，而向终端设备或网络写则不一定。
 
 【注意】阻塞与非阻塞是对于文件而言的，而不是指read、write等的属性。
 
@@ -1090,25 +1102,25 @@ Linux内核的进程控制块是task_struct结构体。
 
 1.运行态:
 
-​	程序正在被CPU调度运行
+程序正在被CPU调度运行
 
 2.就绪态
 
-​	当程序一切的权限 资源申请调度都完成了 但还未被CPU调度 程序就处于就绪态 
+当程序一切的权限 资源申请调度都完成了 但还未被CPU调度 程序就处于就绪态 
 
 3、僵尸态
 
-​	程序运行结束后 没有被删除和销毁 
+程序运行结束后 没有被删除和销毁 
 
 4、等待态
 
-​	不可中断等待 程序在运行时 由于不接收外来指令和命令 从而不能命令中断和杀死
+不可中断等待 程序在运行时 由于不接收外来指令和命令 从而不能命令中断和杀死
 
-​	可中断等待 进程在运行时 可以接收到外来信号 能够被中断和停止
+可中断等待 进程在运行时 可以接收到外来信号 能够被中断和停止
 
 5、停止态
 
-​	程序运行时 接受到了停止信号 从等待态变为停止态 再次需要调用时 就会变为就绪态 然后可以重新调度运行
+程序运行时 接受到了停止信号 从等待态变为停止态 再次需要调用时 就会变为就绪态 然后可以重新调度运行
 
 #### 查看本机进程
 
@@ -1154,7 +1166,7 @@ kill + 进程号 进行杀死
 
 它从父进程处继承了整个进程的地址空间：包括进程上下文（进程执行活动全过程的静态描述）、进程堆栈、打开的文件描述符、信号控制设定、进程优先级、进程组号等。
 
-​	子进程所独有的只有它的进程号，计时器等（只有小量信息）。因此，使用 fork() 函数的代价是很大的。
+子进程所独有的只有它的进程号，计时器等（只有小量信息）。因此，使用 fork() 函数的代价是很大的。
 
 ![image-20221019165711510](C++.assets/image-20221019165711510.png)
 
@@ -1278,7 +1290,7 @@ sudo init 6/0 可以进行关机开机
 
 tail -f动态的查看文件追加内容
 
-​           
+​         
 
 
 
@@ -1751,7 +1763,7 @@ Linux下设置IP可以在ifconfig 命令后加 网卡名称 ens33
 
 应用层
 
- 
+
 
 开发中使用
 
@@ -1779,7 +1791,7 @@ Linux下设置IP可以在ifconfig 命令后加 网卡名称 ens33
 
 应用层协议:
 
- FTP: 文件传输协议
+FTP: 文件传输协议
 
 HTTP: 超文本传输协议
 
@@ -1949,7 +1961,7 @@ UDP 默认8个字节 TCP IP 都默认为20个字节
 
 
 
-### 网络同通信协议过程
+## 网络同通信协议过程
 
 组包的过程由上往下 即 应用层 → 传输层 → 网络层 → 链路层
 
@@ -1989,99 +2001,6 @@ UDP 默认8个字节 TCP IP 都默认为20个字节
 
 
 
-## 函数
-
-### Socket()
-
-#include <sys/socket.h>
-
-int socket(int domain, int type, int protocol);
-
-功能：创建套接字
-
-参数 domain:通信域 协议族
-
-- PF_LOCAL/PF_UNIX 本地套接字  进程间通信
-- PF_INET IPV4通信
-- PF_INET6 IPV6通信
-- PF_PACKET 底层包的网络通信
-
-**所有的PF\*  都可以更换为AF ***
-
-type 套接字类型
-
-- SOCK_STREAM TCP协议  流式套接字
-- SOCK_DGREAM UDB协议  数据报套接字
-- SOCK_RAW 创建在工作在传输层以下的套接字
-
-**对于使用TCP 和 UDP的套接字   那么在参数三protocol 传入0即可**
-
-当传入套接字在传输层以下  **那么需要用户指定每一层的协议CNVXZ,./**
-
-#### 工作在物,./理层的套接字的应用
-
-由于物理层需要接收所有数据包 则可以用于抓包
-
-PF_PACKET 底层包的网络通信
-
-SOCK_RAW 创建在工作在传输层以下的套接字
-
-### Bind()
-
-**#include** **<sys/socket.h>**
-
-   int bind(int socket, const struct sockaddr *address, socklen_t address_len);
-
-**DESCRIPTION**
-
-   **bind**() assigns a name to an unnamed socket. When a socket is created with
-
-   socket(2) it exists in a name space (address family) but has no name assigned.
-
-   **bind**() requests that address be assigned to the socket.
-
-**NOTES**
-
-   Binding a name in the UNIX domain creates a socket in the file system that must be
-
-   **deleted by the caller when it is no longer needed (using unlink(2)).**
-
-   The rules used in name binding vary between communication domains. Consult the manual entries in section 4 for detailed information.
-
-**RETURN** **VALUES**
-
-   **Upon successful completion, a value of 0 is returned.** Otherwise, **a value of -1 is**  **returned** and the global integer variable errno is set to indicate the error.
-
-
-
-
-
-### 大端小端转换
-
-网络协议栈以大端方式(方便人类阅读)处理数据  但数据在计算机中存储方式为小端方式
-
-故而  在传递数据时  需要将数据有小端方式改为大端方式后传输
-
-小端h  主机字节序  大端n  网络字节序
-
-uint32_t htonl(uint32_t hostlong); 长整形主机字节序到网络字节序
-
-uint32_t ntohl(uint32_t netlong); 
-
-uint16_t htonl(uint16_t hostlong); 
-
-uintz,xv执行，。16_t ntohl(uint16_t netlong);
-
-ip地BCMNVX 址的转换
-
-int_addr_t inet_addr(char const* ip);
-
-点分十进制字符串地址 转换为网络字节序形式整数地址
-
-int inet_aton(char const* ip, struct in_addr* nip);
-
-char* inet_ntoa(struct in_addr nip);
-
 
 
 ## 网络设计模式
@@ -2109,6 +2028,500 @@ C/S cilent/server 客户端与服务器
 缺点：性能低 不能用于大型游戏
 
 在网络协议上 由于是浏览器 所以协议必须是http/https 而客户端可以有自己的协议
+
+
+
+
+
+
+
+
+
+# API
+
+## Socket()
+
+#include <sys/socket.h>
+
+int socket(int domain, int type, int protocol);
+
+功能：创建套接字
+
+参数 domain:通信域 协议族
+
+- PF_LOCAL/PF_UNIX 本地套接字  进程间通信
+- PF_INET IPV4通信
+- PF_INET6 IPV6通信
+- PF_PACKET 底层包的网络通信
+
+**所有的PF\*  都可以更换为AF ***
+
+type 套接字类型
+
+- SOCK_STREAM TCP协议  流式套接字
+- SOCK_DGREAM UDB协议  数据报套接字
+- SOCK_RAW 创建在工作在传输层以下的套接字
+
+**对于使用TCP 和 UDP的套接字   那么在参数三protocol 传入0即可**
+
+当传入套接字在传输层以下  **那么需要用户指定每一层的协议CNVXZ,./**
+
+### 工作在物,./理层的套接字的应用
+
+由于物理层需要接收所有数据包 则可以用于抓包
+
+PF_PACKET 底层包的网络通信
+
+SOCK_RAW 创建在工作在传输层以下的套接字
+
+## Bind()
+
+**#include** **<sys/socket.h>**
+
+ int bind(int socket, const struct sockaddr *address, socklen_t address_len);
+
+**DESCRIPTION**
+
+ **bind**() assigns a name to an unnamed socket. When a socket is created with
+
+ socket(2) it exists in a name space (address family) but has no name assigned.
+
+ **bind**() requests that address be assigned to the socket.
+
+**NOTES**
+
+ Binding a name in the UNIX domain creates a socket in the file system that must be
+
+ **deleted by the caller when it is no longer needed (using unlink(2)).**
+
+ The rules used in name binding vary between communication domains. Consult the manual entries in section 4 for detailed information.
+
+**RETURN** **VALUES**
+
+ **Upon successful completion, a value of 0 is returned.** Otherwise, **a value of -1 is**  **returned** and the global integer variable errno is set to indicate the error.
+
+
+
+
+
+## 主机字节序与网络字节序的转换
+
+**小端  主机字节序  大端  网络字节序**
+
+网络协议栈以大端方式(方便人类阅读)处理数据  但数据在计算机中存储方式为小端方式
+
+故而  在传递数据时  需要将数据有小端方式改为大端方式后传输
+
+       #include <arpa/inet.h>
+    
+       uint32_t htonl(uint32_t hostlong);
+    
+       uint16_t htons(uint16_t hostshort);
+    
+       uint32_t ntohl(uint32_t netlong);
+    
+       uint16_t ntohs(uint16_t netshort);
+
+>The htonl() function converts the unsigned integer hostlong from ***host byte order** to **network byte** order.
+>
+>The  htons() function converts the unsigned short integer hostshort from **host byte order** to **network byte**
+> **order**.
+>
+>The ntohl() function converts the unsigned integer netlong from **network byte order** to **host byte order**.
+>
+>The ntohs() function converts the unsigned short integer netshort from **network byte order** to  **host  byte**
+> **order**.
+>
+>integer 整型   host byte order 主机字节序 network byte order 网络字节序
+
+**ip地址的转换**
+
+int_addr_t inet_addr(char const* ip);
+
+**点分十进制字符串地址 转换为网络字节序形式整数地址**
+
+int inet_aton(char const* ip, struct in_addr* nip);
+
+char* inet_ntoa(struct in_addr nip);
+
+
+
+## wrap
+
+### wrap.h
+
+```c++
+#ifndef __WRAP_H_
+#define __WRAP_H_
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <strings.h>
+
+void perr_exit(const char *s);
+int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr);
+int Bind(int fd, const struct sockaddr *sa, socklen_t salen);
+int Connect(int fd, const struct sockaddr *sa, socklen_t salen);
+int Listen(int fd, int backlog);
+int Socket(int family, int type, int protocol);
+ssize_t Read(int fd, void *ptr, size_t nbytes);
+ssize_t Write(int fd, const void *ptr, size_t nbytes);
+int Close(int fd);
+ssize_t Readn(int fd, void *vptr, size_t n);
+ssize_t Writen(int fd, const void *vptr, size_t n);
+ssize_t my_read(int fd, char *ptr);
+ssize_t Readline(int fd, void *vptr, size_t maxlen);
+int tcp4bind(short port,const char *IP);
+#endif
+```
+
+### wrap.c
+
+```c++
+// #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <strings.h>
+
+void perr_exit(const char *s)
+{
+	perror(s);
+	exit(-1);
+}
+
+int Accept(int fd, struct sockaddr *sa, socklen_t *salenptr)
+{
+	int n;
+
+again:
+	if ((n = accept(fd, sa, salenptr)) < 0) {
+		if ((errno == ECONNABORTED) || (errno == EINTR))//如果是被信号中断和软件层次中断,不能退出
+			goto again;
+		else
+			perr_exit("accept error");
+	}
+	return n;
+}
+
+int Bind(int fd, const struct sockaddr *sa, socklen_t salen)
+{
+    int n;
+
+	if ((n = bind(fd, sa, salen)) < 0)
+		perr_exit("bind error");
+
+    return n;
+}
+
+int Connect(int fd, const struct sockaddr *sa, socklen_t salen)
+{
+    int n;
+
+	if ((n = connect(fd, sa, salen)) < 0)
+		perr_exit("connect error");
+
+    return n;
+}
+
+int Listen(int fd, int backlog)
+{
+    int n;
+
+	if ((n = listen(fd, backlog)) < 0)
+		perr_exit("listen error");
+
+    return n;
+}
+
+int Socket(int family, int type, int protocol)
+{
+	int n;
+
+	if ((n = socket(family, type, protocol)) < 0)
+		perr_exit("socket error");
+
+	return n;
+}
+
+ssize_t Read(int fd, void *ptr, size_t nbytes)
+{
+	ssize_t n;
+
+again:
+	if ( (n = read(fd, ptr, nbytes)) == -1) {
+		if (errno == EINTR)//如果是被信号中断,不应该退出
+			goto again;
+		else
+			return -1;
+	}
+	return n;
+}
+
+ssize_t Write(int fd, const void *ptr, size_t nbytes)
+{
+	ssize_t n;
+
+again:
+	if ( (n = write(fd, ptr, nbytes)) == -1) {
+		if (errno == EINTR)
+			goto again;
+		else
+			return -1;
+	}
+	return n;
+}
+
+int Close(int fd)
+{
+    int n;
+	if ((n = close(fd)) == -1)
+		perr_exit("close error");
+
+    return n;
+}
+
+/*参三: 应该读取固定的字节数数据*/
+ssize_t Readn(int fd, void *vptr, size_t n)
+{
+	size_t  nleft;              //usigned int 剩余未读取的字节数
+	ssize_t nread;              //int 实际读到的字节数
+	char   *ptr;
+
+	ptr = vptr;
+	nleft = n;
+
+	while (nleft > 0) {
+		if ((nread = read(fd, ptr, nleft)) < 0) {
+			if (errno == EINTR)
+				nread = 0;
+			else
+				return -1;
+		} else if (nread == 0)
+			break;
+
+		nleft -= nread;
+		ptr += nread;
+	}
+	return n - nleft;
+}
+/*:固定的字节数数据*/
+ssize_t Writen(int fd, const void *vptr, size_t n)
+{
+	size_t nleft;
+	ssize_t nwritten;
+	const char *ptr;
+
+	ptr = vptr;
+	nleft = n;
+	while (nleft > 0) {
+		if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
+			if (nwritten < 0 && errno == EINTR)
+				nwritten = 0;
+			else
+				return -1;
+		}
+
+		nleft -= nwritten;
+		ptr += nwritten;
+	}
+	return n;
+}
+
+static ssize_t my_read(int fd, char *ptr)
+{
+	static int read_cnt;
+	static char *read_ptr;
+	static char read_buf[100];
+
+	if (read_cnt <= 0) {
+again:
+		if ( (read_cnt = read(fd, read_buf, sizeof(read_buf))) < 0) {
+			if (errno == EINTR)
+				goto again;
+			return -1;
+		} else if (read_cnt == 0)
+			return 0;
+		read_ptr = read_buf;
+	}
+	read_cnt--;
+	*ptr = *read_ptr++;
+
+	return 1;
+}
+
+ssize_t Readline(int fd, void *vptr, size_t maxlen)
+{
+	ssize_t n, rc;
+	char    c, *ptr;
+
+	ptr = vptr;
+	for (n = 1; n < maxlen; n++) {
+		if ( (rc = my_read(fd, &c)) == 1) {
+			*ptr++ = c;
+			if (c  == '\n')
+				break;
+		} else if (rc == 0) {
+			*ptr = 0;
+			return n - 1;
+		} else
+			return -1;
+	}
+	*ptr  = 0;
+
+	return n;
+}
+
+int tcp4bind(short port,const char *IP)
+{
+    struct sockaddr_in serv_addr;
+    int lfd = Socket(AF_INET,SOCK_STREAM,0);
+    bzero(&serv_addr,sizeof(serv_addr));
+    if(IP == NULL){
+        //如果这样使用 0.0.0.0,任意ip将可以连接
+        serv_addr.sin_addr.s_addr = INADDR_ANY;
+    }else{
+        if(inet_pton(AF_INET,IP,&serv_addr.sin_addr.s_addr) <= 0){
+            perror(IP);//转换失败
+            exit(1);
+        }
+    }
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port   = htons(port);
+    int opt = 1;
+	setsockopt(lfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    Bind(lfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr));
+    return lfd;
+}
+```
+
+
+
+## Select()
+
+> select()  and  pselect() allow a program to monitor multiple file descriptors, waiting until one or more
+>        of the file descriptors become "ready" for some class of I/O operation (e.g., input possible).   A  file
+>        descriptor  is  considered  ready  if  it  is possible to perform the corresponding I/O operation (e.g.,
+>        read(2)) without blocking.
+
+/* According to POSIX.1-2001 */
+       #include <sys/select.h>
+
+/* According to earlier standards */
+   #include <sys/time.h>
+   #include <sys/types.h>
+   #include <unistd.h>
+
+ int select(int nfds, fd_set *readfds, fd_set *writefds,
+              fd_set *exceptfds, struct timeval *timeout);
+
+- 参数
+
+  - nfds 最大文件描述符 + 1 
+
+  - fd_set 文件描述符集合
+
+  - readfds 需要监听的读的文件描述符存放集合
+
+  - writefds 需要监听的写的文件描述符存放集合
+
+  - exceptfds 需要监听的异常的文件描述符存放集合
+
+    > - Three independent sets of file descriptors are watched.  Those listed in readfds will be watched to  see
+    >   if characters become available for reading (more precisely, to see if a read will not block; in particular, a file descriptor is also ready on end-of-file), those in writefds will be  watched  to  see  if  a
+    >   write will not block, and those in exceptfds will be watched for exceptions.  On exit, the sets are modified in place to indicate which file descriptors actually changed  status.   Each  of  the  three  file
+    >   descriptor  sets may be specified as NULL if no file descriptors are to be watched for the corresponding
+    >   class of events.
+
+  - timeout 一次监听的时间 NULL 持续监听
+
+    > **The timeout argument specifies the minimum interval that  select()  should  block  waiting  for  a  file**
+    > **descriptor to become ready.**  (This interval will be rounded up to the system clock granularity, and kernel scheduling delays mean that the blocking interval may overrun by a small amount.)  If both fields of the  timeval  structure  are zero, then select() returns immediately.  (This is useful for polling.)  If
+    > timeout is NULL (no timeout), select() can block indefinitely.
+
+    - The timeout
+             The time structures involved are defined in <sys/time.h> and look like
+
+                 struct timeval {
+                     long    tv_sec;         /* seconds */
+                     long    tv_usec;        /* microseconds */
+                 };
+          
+             and
+          
+                 struct timespec {
+                     long    tv_sec;         /* seconds */
+                     long    tv_nsec;        /* nanoseconds */
+                 };
+
+- 返回值
+
+  - On success, select() and pselect() **return the number of file descriptors contained in the three returned**
+    **descriptor  sets  (that is, the total number of bits that are set in readfds, writefds, exceptfds) which**
+    **may be zero if the timeout expires before anything interesting happens.** 
+  - **On error, -1 is  returned**,  and
+    errno  is  set  appropriately;  the  sets and timeout become undefined, so do not rely on their contents
+    after an error.
+
+一次监听过程中 返回容器内存在变化的描述符的数量 若整个过程中没有描述符发生改变则返回0
+
+
+
+>监听多个文件描述符的属性变化(读，写，异常)  
+>
+>void FD_CLR(int fd, fd_set *set);
+>int  FD_ISSET(int fd, fd_set *set);
+>void FD_SET(int fd, fd_set *set);
+>void FD_ZERO(fd_set *set);
+
+### 监听原理
+
+![Image [2]](C++.assets/Image [2].png)
+
+> 应用层调用系统调用 让内核监听文件描述符 应用层每次传入一个位图表 表示监听哪几个文件描述符 每个描述符在监听的时间内变化则内核修改其在位图上的对应位置 监听结束后返回给应用 若监听lfd时 该描述符变化 则表示产生了新的描述符 则在位图表中将对应位置 置为1表示已分配 然后传递给内核 内核在下次监听时会根据位图表监听对应的文件描述符
+
+
+
+```c++
+#include <stdio.h>
+#include <sys/select.h>
+#include <unistd.h>
+#include <sys/time.h>
+```
+
+
+
+
+
+
+
+# TCP
+
+## 状态转换图
+
+![Image](C++.assets/Image.png)
+
+主动方 客户端
+
+被动方 服务器 
+
+主动方主动发起TCP连接请求  被动方运行开始保持监听状态
+
+
+
+
+
+
+
+
 
 
 
@@ -2451,7 +2864,7 @@ close(sockfd);
   }
 ```
 
-
+# UDP
 
 ## UDP编程模型
 
@@ -2587,7 +3000,7 @@ int main(void)
 
 
 
-## 域名解析
+# 域名解析
 
 域名到IP地址的转换过程  由DNS服务器完成
 
@@ -2636,7 +3049,9 @@ int main(int argc, char* argv[])
 
 
 
-## HTTP协议
+
+
+# HTTP协议
 
 应用层协议
 
@@ -2644,7 +3059,7 @@ int main(int argc, char* argv[])
 
 客户端 服务器通过协议标准发送 应答数据
 
-### 请求头
+## 请求头
 
 ![image-20240115220438475](C++.assets/image-20240115220438475.png)
 
@@ -2677,9 +3092,9 @@ int main(int argc, char* argv[])
 
 
 
-### 响应头
+## 响应头
 
- 
+
 
 ![image-20240115221853796](C++.assets/image-20240115221853796.png)
 
@@ -2768,6 +3183,10 @@ int main(int argc, char* argv[]) //命令行参数 输入百度域名地址 百�
 
 \r\n  == ^M
 
+
+
+
+
 # 密码学
 
 ## OPENSSL加密的方式
@@ -2800,11 +3219,11 @@ TLS 传输层套接字协议
 
 `{`
 
-​	`int a; //4`
+`int a; //4`
 
-​	`char b; //1`
+`char b; //1`
 
-​	`int c; //4`
+`int c; //4`
 
 `};`
 
@@ -3067,7 +3486,7 @@ TLS 传输层套接字协议
 			如果能还原 时代将会翻天覆地，硬盘等只需要几K的字符 就能还原1G 或者1T的大小的值
 ```
 
- 哈希运算的结果
+哈希运算的结果
 
 - 散列值
 - 指纹
@@ -3202,7 +3621,7 @@ HASH算法不能称为加密算法 因为加密后 不能还原
 
 # WEB服务器项目
 
-## 项目开发流程
+## CPPweb项目开发流程
 
 1.需求分析
 
@@ -4424,7 +4843,7 @@ int main(int argc, char* argv[])
 
 //将所有的.o 与main.c 编译为webserver
 
- 由于使用端口复用 需要超级用户权限 
+由于使用端口复用 需要超级用户权限 
 
 
 
