@@ -2454,9 +2454,9 @@ int tcp4bind(short port,const char *IP)
                      long    tv_sec;         /* seconds */
                      long    tv_usec;        /* microseconds */
                  };
-          
+              
              and
-          
+              
                  struct timespec {
                      long    tv_sec;         /* seconds */
                      long    tv_nsec;        /* nanoseconds */
@@ -2493,8 +2493,35 @@ int tcp4bind(short port,const char *IP)
 ```c++
 #include <stdio.h>
 #include <sys/select.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include "wrap.h"
+#include <sys/time.h>
+#define PORT 8888
+
+int main(int argc, char* argv[])
+{
+  //创建套接字 绑定
+  int lfd = tcp4bind(PORT, NULL);
+  //监听
+  Listem(lfd, 128);
+  int maxfd = lfd; //最大的文件描述符
+  fd_set oldset, rset;
+  FD_ZERO(&oldset);
+  FD_ZERO(&rset);
+  //将lfd添加到oldset集合中
+  FD_SET(lfd, &oldset);
+  
+  //while
+  while(1)
+  {
+    //select 监听
+    rset = oldset; // 将oldset赋值给需要监听的集合rset
+    select(maxfd + 1, )
+  }
+  
+}
 ```
 
 
