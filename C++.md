@@ -2518,7 +2518,34 @@ int main(int argc, char* argv[])
   {
     //select 监听
     rset = oldset; // 将oldset赋值给需要监听的集合rset
-    select(maxfd + 1, )
+    int n = select(maxfd + 1, &rset, NULL, NULL, NULL);
+    if(n < 0)
+    {
+      perror("");
+      break;
+    }
+    else if(n == 0)
+    {
+      continue; //无变化
+		}
+    else
+    {
+      //lfd 变化
+      if( FD_ISSET(ldf, &rset))
+      {
+        struct sockaddr_in cliaddr;
+        socklen_t len = sizeof(cliaddr);
+        char ip[16] = "";
+        //提取新的连接
+        int cfd = Accept(lfd, (struct sockaddr*)&cliaddr, &len);
+        printf("new client ip = %s port = %d\n", 
+               inet_ntop(AF_INET, &cliaddr.sin_addr.s_addr,ip,16),
+               ntohs(cliaddr.sin_port) );
+        //将cfd添加至oldset集合中， 用以下一次监听
+        FD_SET(cfd, oldset);
+        maxfd = cfd;
+;			}
+		}
   }
   
 }
