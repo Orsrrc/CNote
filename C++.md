@@ -2512,7 +2512,7 @@ int main(int argc, char* argv[])
   FD_ZERO(&rset);
   //将lfd添加到oldset集合中
   FD_SET(lfd, &oldset);
-  
+
   //while
   while(1)
   {
@@ -2527,11 +2527,11 @@ int main(int argc, char* argv[])
     else if(n == 0)
     {
       continue; //无变化
-		}
+    }
     else
     {
       //lfd 变化
-      if( FD_ISSET(ldf, &rset))
+      if(FD_ISSET(ldf, &rset))
       {
         struct sockaddr_in cliaddr;
         socklen_t len = sizeof(cliaddr);
@@ -2543,11 +2543,48 @@ int main(int argc, char* argv[])
                ntohs(cliaddr.sin_port) );
         //将cfd添加至oldset集合中， 用以下一次监听
         FD_SET(cfd, oldset);
-        maxfd = cfd;
-;			}
-		}
+        //更新maxfd
+        maxfd = cfd > maxfd ? cfd : maxfd;
+        //如果只有lfd变化 continue
+        if(--n == 0)
+        {
+          continue;
+        }
+
+        //cfd connetfd
+        for(int i = lfd + 1; i <= maxfd; i++)
+        {
+          //如果i文件描述符在rset集合中
+          if(FD_ISSET(i, &rset))
+          {
+            char buf[1500] = ""; //以太网的最大传输单元为1500B
+            int ret = Read(i, buf, sizeof(buf));
+            if(ret < 0) //出错将cfd关闭 从oldset中删除cfd
+            {
+              perror("");
+              close(i);
+              FD_CLR(i, &oldset);
+              continue;
+            }
+            else if(ret == 0)
+            {
+              close(i);
+              FD_CLR(i, &oldset);
+              printf("客户端关闭\n");
+					 }
+            else
+            {
+             printf("%s\n", buf);
+             write(i, buf, ret);
+					}
+          }//if
+          
+          
+        }//for
+        
+      }
+    }
   }
-  
 }
 ```
 
@@ -4903,3 +4940,4 @@ int main(int argc, char* argv[])
 
 
 
+## zhix框架
