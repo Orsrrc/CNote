@@ -148,3 +148,83 @@ int main(int argc, char** argv)
 }
 ```
 
+## 信号和槽
+
+通信机制  实现对象之间的数据交互
+
+当用户或系统触发了一个动作 导致某个控件的状态发生了改变  该控件就发送一个信号
+
+槽函数对某种特定信号的处理 用槽和其他对象信号建立连接 绑定  当该信号发生时 触发和执行
+
+
+
+### 定义
+
+#### 信号的定义
+
+```c++
+class name:public QObject
+{
+	O_OBJECT;//宏
+	signals:
+  	void signal_func(……); //信号函数
+};
+```
+
+信号函数只需声明 不能写定义 底层使用信号的机制 QT做了封装
+
+#### 槽函数
+
+```c++
+class name:public QObject{
+  Q_OBJECT;
+  public slots:
+  void slot_func(){;} //槽函数
+};
+//槽函数可以连接到某个信号 当信号被发射时 槽函数将被触发和执行
+```
+
+### 信号和槽的连接
+
+QObect::connet(const QObect* sender, const char* signal, const QObect* receiver, const char* method);
+
+- sender 信号发送对象指针
+- signal 信号的函数
+
+- receiver 信号接收对象指针
+- method 接收信号后要执行的槽函数
+
+```c++
+#include <QApplication>
+#include <QLabel>
+#include <QPushButton>
+
+int main(int argc, char** argv)
+{
+  //创建应用程序对象
+  QApplication app(argc, argv);
+  QLabel label("点击按钮关闭标签");
+  label.show();
+  
+  QPushButton button("关闭");
+  button.show();
+  
+  //信号和槽函数的连接
+  QObject::connect(&button, SIGNAL(clicked()), &label, SLOT(close()));
+  
+  //进入主事件循环
+  return app.exe();
+}
+```
+
+
+
+信号和槽函数参数要一致 槽函数可以被直接调用
+
+信号函数的参数可以多于槽函数 多于参数将被忽略
+
+参数和槽的连接若参数不匹配 但不会编译错误 只会在产生信号时没有槽函数处理 代表连接失败
+
+![image-20240201185614474](QT.assets/image-20240201185614474.png)
+
+该机制类似于调用槽函数时 不直接调用 通过信号触发槽函数  **信号只有提供槽函数数据的功能** (迭代器调用算法)
