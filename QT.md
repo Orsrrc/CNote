@@ -41,7 +41,9 @@ qtcreator 集成以上所有部件 最终使用
 
 desktop application 只有当用户点击叉了以后才会关闭 故而不需要写入return 0
 
+### 基于对象的Qt编程
 
+![image-20240205154144887](QT.assets/image-20240205154144887.png)
 
 ## 编译为可执行文件
 
@@ -165,7 +167,7 @@ int main(int argc, char** argv)
 ```c++
 class name:public QObject
 {
-	O_OBJECT;//宏
+	O_OBJECT//宏
 	signals:
   	void signal_func(……); //信号函数
 };
@@ -177,7 +179,7 @@ class name:public QObject
 
 ```c++
 class name:public QObject{
-  Q_OBJECT;
+  Q_OBJECT
   public slots:
   void slot_func(){;} //槽函数
 };
@@ -228,3 +230,321 @@ int main(int argc, char** argv)
 ![image-20240201185614474](QT.assets/image-20240201185614474.png)
 
 该机制类似于调用槽函数时 不直接调用 通过信号触发槽函数  **信号只有提供槽函数数据的功能** (迭代器调用算法)
+
+![image-20240205133135116](QT.assets/image-20240205133135116.png)
+
+```C++
+#include <QApplication>
+#include <QDialog>
+#include <QSlider> //滑块
+#include <QSpainBox> //选值框
+
+int main(int argc, char** argv)
+{
+  QApplication app(argc, argv);
+  
+  //创建父窗口
+	QDiaglog parent;
+  parent.move(500, 400);
+  parent.resize(400, 100);
+  
+  //滑块
+  QSlider slider(Qt::Horizontal, &parent);	//创建水平滑块
+	slider.move(50, 35);
+  slider.resize(180, 30);
+  
+  //选值框
+  QSpinBox spinBox(&parent);
+  spinbox.move(270, 35);
+  spinBox.resize(80, 30);
+  spinBox.serRange(0, 200); //设置选值框控件的取值范围
+  
+  
+  //显示父窗口
+  parent.show();
+  
+  //信号和槽函数的连接
+  QObject::connect(&slider, SIGNAL(valueChanged(int)), &spinBox, SLOT(setValue(int)));
+  QObject::connetc(&spinBox, SIGNAL(valueChanged(int)), &slider, SLOT(serValue(int)));
+  
+  //传入函数指针的connect
+  QObject::connetc(&spinBox, &QSpinBox::valueChanged, &slider, &QSlider::setValue);
+  //error
+  //若当传入的函数为被重载过的函数 那么只通过函数名不能通过函数指针进行传入
+  //编译时会报错
+  return app.exec();
+	
+}
+```
+
+**Q_OBJECT**
+
+Q_OBJECT 表明槽函数和信号通过moc翻译为c++语法  若定义了槽函数和信号函数而不添加这个宏  则在连接槽和信号时 由于槽函数未翻译 编译器找不到对应的函数  故而连接失败
+
+
+
+## 案例:加法器
+
+![image-20240205154840331](QT.assets/image-20240205154840331.png)
+
+
+
+**CalculatorDialog.h**
+
+```c++
+#ifndef __CALCULATORDIALOG_H
+#define __CALCULATORDIALOG_H
+
+#include <QDialog>
+#include <QLabel>
+#include <QPushButton>
+#include <QLineEdit> //单行输入框
+#include <QHBoxLayout> //水平布局器
+#include <QDoubleValidator> //double数字验证器
+
+
+class CalculatorDialog:plblic QDialog{
+	Q_OBJECT //moc 宏 将qt语法转化为c语法
+public slots:
+  	// 计算并显示结果
+  void calc(void);
+
+  void enabledButton(void);
+  
+  
+public:
+  	calculatorDialog(void);
+private:
+  QLineEdit* m_editX; //左操作数
+  QLineEdit* m_editY; //右操作数
+  QLineEdit* m_editZ; //结果
+  QLabel* m_label;  //+
+  QPushButton* m_button; //=
+
+};
+
+
+
+
+
+#endif //__CALCULATORDIAGLOG_H
+```
+
+
+
+**calculator.cpp**
+
+```c++
+#include "calculatorDiaglog.h"
+//构造函数
+
+CalculatorDialog::CalculatorDialog(void)
+{
+	//窗口初始化
+  this->setWindowTitle("计算器");
+  
+  //左操作数 this 当前控件的父窗口指针 谁调用构造函数 谁就是父窗口
+  m_editX = new QLineEdit(this);
+  //设置文本对齐 水平右对齐
+  m_editX->setAlignment(Qt::AlignRight);
+  //设置数字验证器 只能输入数字
+  m_editX->setValudator(new QDoubleValidator(this));
+  
+  //右操作数
+  m_editY = new QLineEdit(this);
+  m_editY->setAlignment(Qt::AlignRight);
+  m_editY->setValudator(new QDoubleValidator(this));
+  
+  //结果
+  m_editZ = new QLineEdit(this);
+  m_editZ->setAlignment(Qt::AlignRight);
+  m_editZ->setReadOnly(true);
+  
+  // +
+  m_label = new QLabel("+", this);
+  
+  //=
+  m_button = new QPushButton("=", this);
+  m_button->setEnable(false); //设置为禁用
+  
+  //创建布局器 布局器即将所有的控件放到一个盒子中 盒子水平对齐  当对整体移动时 只需要移动盒子即可
+  QHBoxLayout* layout = new QHBoxLayout(this);
+  layout_addWidget(m_editX);
+  layout_addWidget(m_label);
+  layout_addWidget(m_button);
+  layout_addWidget(m_editZ);
+  //添加顺序为在水平布局器中的先后顺序
+  
+  //设置窗口的布局器 窗口也是一个盒子
+  this->setLayout(layout);
+  
+  //信号和槽函数的连接
+  connect(m_editX, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(m_editY, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(m_button, SIGNAL(clicked()), this, SLOT(calc()));
+  
+}
+
+void CalculatorDialog::enabledButton(void)
+{
+  bool bXok, bYok;
+  //QLineEdit::text(); 获取QLineEdit的文本
+  //QString::toDouble(bool* ok) 将QString 转化为double
+ if(m_editX->text().toDouble(&bXok) && m_editY->text().toDouble(&bYok))
+ {
+   m_button->setEnabled(bXOk && bYOk);
+ }
+}
+
+void CalculatorDialog::calc(void)
+{
+  double res = m_editX->text().toDouble() + m_editY->text().toDouble();
+  //Qstring::number 将double数字 转换为QString 字符串
+  QString str = QString::number(res, 'g', 2);
+  //将结果显示在文本框中
+  m_editZ->setText(str);
+	  
+}
+```
+
+
+
+
+
+**main.cpp**
+
+```c++
+#include <QApplication>'
+#include "CalculatorDialog.h"
+
+int main(int argc, char** argv)
+{
+	//创建应用程序对象
+  QApplication app(argc, argv);
+  CalculatorDialog calc;
+  calc.show();
+  return app.exec();
+}
+```
+
+
+
+编译为可执行文件
+
+- qmake -project 生成.pro文件 依据当前目录生成
+- vi Calculator.pro
+  - 在开始添加 QT += widgets
+
+![image-20240205164842858](QT.assets/image-20240205164842858.png)
+
+- qmake 构建脚本文件
+  - 生成.o moc_CalculatorDialog.cpp Q_OBEJCT 启动moc 将.h 转换为.cpp 槽函数和信号写在头文件中
+  - ![image-20240205165057502](QT.assets/image-20240205165057502.png)
+
+## 案例:获取系统时间
+
+![image-20240205184718300](QT.assets/image-20240205184718300.png)
+
+
+
+```c++
+#ifndef __TIMEDIALOG_H
+#define __TIMEDIALOG_H
+
+#include <QDialog>
+#include <QLabel>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QVBoxLayout>
+#include <QTime>
+#include <QDebug>
+
+class TimeDialog:public QDialog
+{
+  Q_OBJECT
+ public:
+ 	//构造函数
+  TimeDialog(void);
+  
+ public slots:
+  //获取系统时间的槽函数
+  void getTime(void);
+ signals:
+  void mySignal(const QString&); // 自定义信号 只能声明 不能定义
+ private:
+  QLabel* m_label; //显示时间的标签
+  QPushButton* m_button;  //获取时间的按钮
+  
+};
+
+#endif //__TIMEDIALOG_H
+
+```
+
+
+
+```C++
+#include "TimeDialog.h"
+
+//构造函数
+TimeDialog::TimeDialog(void)
+{
+  //窗口的初始化
+  this->setWindowTitle("获取系统时间");
+  
+  //label
+  m_label = new QLabel(this);
+  //设置边框效果
+  m_label->setFrameStyle(QFrame::Panel | QFrame::Sunken);
+  //设置水平垂直居中
+  m_label->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+  
+  //设置字体大小
+  QFont font;
+  fon.setPointSize(20);
+  m_label->setFont(font);
+  
+  //m_button
+  m_button = new QPushButton("获取系统时间", this);
+  m_button->setFont(font);
+  
+  QVBoxLayout* layout = new QVBoxLayout(this);
+  layout->addWidget(m_label);
+  layout->addWidget(m_button);
+  this->setLayout(layout);
+  
+  //信号和槽的连接
+  connect(m_buttn, SIGNAL(clicked()), this, SLOT(gettime()));
+  
+  connect(m_button, SIGNAL(mySignal(QString)), m_label, SLOT(setText(QString)));
+}
+
+void TimeDialo::getTime(void)
+{
+  QTime time = QTime::currrentTime ();
+  QString str = time.toString("hh:mm:ss");
+  m_label->setText(str)；
+  //发射信号
+  emit mySignal(str);
+}
+```
+
+
+
+**main.cpp**
+
+```c++
+#include <QApplication>
+#include "TimeDialog.h"
+
+int main(int argc, char** argv)
+{
+  QApplication app(argc, argv);
+  TimeDialog time;
+  time.show();
+  
+  return app.exec();
+}
+```
+
+自定义信号常用于不同窗口的数据传递
