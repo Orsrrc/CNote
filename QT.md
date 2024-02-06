@@ -281,9 +281,9 @@ int main(int argc, char** argv)
 
 Q_OBJECT 表明槽函数和信号通过moc翻译为c++语法  若定义了槽函数和信号函数而不添加这个宏  则在连接槽和信号时 由于槽函数未翻译 编译器找不到对应的函数  故而连接失败
 
+### 案例
 
-
-## 案例:加法器
+#### 案例:加法器
 
 ![image-20240205154840331](QT.assets/image-20240205154840331.png)
 
@@ -441,7 +441,7 @@ int main(int argc, char** argv)
   - 生成.o moc_CalculatorDialog.cpp Q_OBEJCT 启动moc 将.h 转换为.cpp 槽函数和信号写在头文件中
   - ![image-20240205165057502](QT.assets/image-20240205165057502.png)
 
-## 案例:获取系统时间
+#### 案例:获取系统时间
 
 ![image-20240205184718300](QT.assets/image-20240205184718300.png)
 
@@ -548,3 +548,290 @@ int main(int argc, char** argv)
 ```
 
 自定义信号常用于不同窗口的数据传递
+
+
+
+## QT designer
+
+![image-20240206102306863](QT.assets/image-20240206102306863.png)
+
+可视化编程
+
+生成一个xml文件 类似一个html文件
+
+使用uic转换器生成.h文件
+
+![image-20240206104508685](QT.assets/image-20240206104508685.png)
+
+
+
+
+
+
+
+![image-20240206105115356](QT.assets/image-20240206105115356.png)
+
+未避免出现中文乱码  在qt的.ui中转换为了编码
+
+
+
+
+
+![image-20240206105647487](QT.assets/image-20240206105647487.png)
+
+UI下的calculateDialog 继承自上面写好的类 
+
+而上面的类为designer自动生成的  当修改ui界面时 上面的类会被频繁的重新编译
+
+而功能部分不变 故而可以将其进行封装  设计时使用子类进行拓展 原有的界面类不变  防止重复编译
+
+**使用继承方式重构后的.h**
+
+```c++
+#ifndef __CALCULATORDIALOG_H
+#define __CALCULATORDIALOG_H
+
+#include <QDoubleValidator>
+#include "ui_CalculatorDialog.h"
+
+//继承方式
+class CalculatorDalog:public QDialog, public Ui::CalculatorDialog
+{ //继承多个类的写法
+  Q_OBJECT //moc
+  public:
+  	CalculatorDialog(void);
+  public slots:
+  	void enabledButton(void);
+  	void calcRes(void);
+}
+
+#endif //__CALCULATORDIALOG_H
+```
+
+
+
+```c++
+#include "CalculatorDialog.h"
+
+CalculatorDialog::CalculatorDialog(void)
+{
+  //界面初始化
+  setupUi(this);
+  //m_editX 等几根指针在头文件中删除  但在构建ui文件中有定义 故而可以继续使用
+  m_editX->setValidator(new QDoubleValudator(this));
+  m_editY->setValidator(new QDoubleValudator(this));
+
+
+  connect(m_editX, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(m_editY, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(m_button, SIGNAL(clicked()), this, SLOT(calc()));
+
+}
+
+void CalculatorDialog::enabledButton(void)
+{
+  bool bXok, bYok;
+  //QLineEdit::text(); 获取QLineEdit的文本
+  //QString::toDouble(bool* ok) 将QString 转化为double
+  if(m_editX->text().toDouble(&bXok) && m_editY->text().toDouble(&bYok))
+  {
+    m_button->setEnabled(bXOk && bYOk);
+  }
+}
+
+void CalculatorDialog::calc(void)
+{
+  double res = m_editX->text().toDouble() + m_editY->text().toDouble();
+  //Qstring::number 将double数字 转换为QString 字符串
+  QString str = QString::number(res, 'g', 2);
+  //将结果显示在文本框中
+  m_editZ->setText(str);
+
+}
+```
+
+
+
+### **使用复合方式生成.h
+
+```c++
+#ifndef __CALCULATORDIALOG_H
+#define __CALCULATORDIALOG_H
+
+#include <QDoubleValidator>
+#include "ui_CalculatorDialog.h"
+
+//继承方式
+class CalculatorDalog:public QDialog
+{ //继承多个类的写法
+  Q_OBJECT //moc
+  public:
+  	CalculatorDialog(void);
+  	~CalculatorDialog(void); //销毁ui指针
+  
+  public slots:
+  	void enabledButton(void);
+  	void calcRes(void);
+  private:
+  	Ui::CalculatorDialog* ui; //通过ui访问界面类的成员
+};
+
+#endif //__CALCULATORDIALOG_H
+```
+
+
+
+**注意写法!!!**
+
+```C++
+#include "CalculatorDialog.h"
+
+CalculatorDialog::CalculatorDialog(void)
+  :ui(new Ui::CalculatorDialog) //构造哈数
+{
+  //界面初始化
+  setupUi(this);
+  //m_editX 等几根指针在头文件中删除  但在构建ui文件中有定义 故而可以继续使用
+  ui->m_editX->setValidator(new QDoubleValudator(this));
+  ui->m_editY->setValidator(new QDoubleValudator(this));
+
+
+  connect(ui->m_editX, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(ui->m_editY, SIGNAL(textChanged(QString)), this, SLOT(enabledButton())));
+  connect(ui->m_button, SIGNAL(clicked()), this, SLOT(calc()));
+
+}
+
+CalculatorDialog::~CalculatorDialog(void)
+{
+	delete ui; //释放Ui 动态分配内存 
+}
+
+
+void CalculatorDialog::enabledButton(void)
+{
+  bool bXok, bYok;
+  //QLineEdit::text(); 获取QLineEdit的文本
+  //QString::toDouble(bool* ok) 将QString 转化为double
+  if(ui->m_editX->text().toDouble(&bXok) && ui->m_editY->text().toDouble(&bYok))
+  {
+    ui->m_button->setEnabled(bXOk && bYOk);
+  }
+}
+
+void CalculatorDialog::calc(void)
+{
+  double res = ui->m_editX->text().toDouble() + ui->m_editY->text().toDouble();
+  //Qstring::number 将double数字 转换为QString 字符串
+  QString str = QString::number(res, 'g', 2);
+  //将结果显示在文本框中
+  ui->m_editZ->setText(str);
+
+}
+```
+
+## 槽函数的命名
+
+**on\_控件名\_信号名（参数列表） 这样不用讲信号和槽进行连接**
+
+### 案例
+
+#### 登陆对话框
+
+![image-20240206114353176](QT.assets/image-20240206114353176.png)
+
+**LoginDialog.h**
+
+```c++
+#ifndef __LOGINDIALOG_H
+#define __LOGINDIALOG_H
+
+#include "ui_loginDialog.h"
+#include <QMessageBOx>
+#include <QDebug> //打印信息
+
+//使用组合方式
+class LoginDialog:public QDialog
+{
+  Q_OBJECT //moc
+  public :
+  	LoginDialog(void);//构造函数
+		~LoginDialog(void);
+  public slots:
+  	//处理ok按钮的点击 accepted 信号
+  	void onAccepted(void);
+  //处理取消按钮的点击 reject 信号
+  void onRejected(void);
+  private:
+  	Ui::LoginDialog* ui;
+};
+
+
+
+#endif // __LOGINDIALOG_H
+```
+
+**LoginDialog.cpp**
+
+```c++
+#include "LoginDialog.h"
+
+//构造函数
+LoginDialogL::LoginDialog(void)
+  :ui(new LoginDialog)
+{
+	//界面初始化函数
+  ui->setupUi(this);
+  //信号与槽的连接
+    connect(ui->buttonBox, SIGNAL(accpted(), this, SLOT(onAccepted())));
+		connect(ui->buttonBox, SIGNAL(rejected(), this SLOT(onRejected())));
+  }
+
+//析构
+LoginDialog::~LoginDialog(void)
+{
+  delete Ui;
+}
+
+//点击ok按钮 
+void LoginDialog::onAccepted(void)
+{
+  if(ui->editUserName->text() == "tarena" && ui->editPassword()  == "123456")
+  {
+    qDebug() << "登陆成功";
+    this->close(); //关闭登陆窗口
+	}
+  else
+  {
+    QMessageBox::critical(this, "登陆", "用户名或密码错误,请重新输入", QMessageBox::Ok | …… );
+	}
+}
+
+//点击cancel按钮
+void LoginDialog::onRejected(void)
+{
+  QMessageBox::StandardButton temp = QMessageBox::question(this, "登录", "确定要退出登录吗？", QMessageBox::Yes | QMessageBox::No, QMessageBox::No );
+  if(temp == QMessageBox::Yes) this->close();
+  
+}
+```
+
+
+
+```c++
+#include <QApplication>
+#include <LoginDialog.h>
+
+int main(int argc, char** argv)
+{
+  QApplication app(argc, argv);
+  LoginDialog login;
+  login.show();
+  
+  return app.exec();
+}
+```
+
+## QT创造器
+
+![image-20240206164725180](QT.assets/image-20240206164725180.png)
