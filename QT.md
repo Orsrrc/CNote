@@ -835,3 +835,122 @@ int main(int argc, char** argv)
 ## QT创造器
 
 ![image-20240206164725180](QT.assets/image-20240206164725180.png)
+
+![image-20240206170618041](QT.assets/image-20240206170618041.png)
+
+> 在qtcreator中.ui文件未转换为.h 但想使用一颗指针来使用.ui里面的控件 
+>
+> 此时可以使用该方法  前置声明 先声明这样一个类先用  后面编译过后该类就回在头文件中产生  防止编译器在编写代码时报错 影响开发
+
+![image-20240206171530479](QT.assets/image-20240206171530479.png)
+
+### Qt事件
+
+![image-20240206171909505](QT.assets/image-20240206171909505.png)
+
+![image-20240206172124973](QT.assets/image-20240206172124973.png)
+
+
+
+![image-20240206172056820](QT.assets/image-20240206172056820.png)
+
+
+
+#### 案例:基于资源的图片浏览器
+
+![image-20240206172250116](QT.assets/image-20240206172250116.png)
+
+![image-20240206175015034](QT.assets/image-20240206175015034.png)
+
+添加前缀prefix后添加文件
+
+前缀即在逻辑上的前面的路径 
+
+showImageDialog.h
+
+```c++
+#ifndef SHOWIMAGEDIALOG_H
+#define SHOWIMAGESDIALOG_H
+
+#include <QDialog>
+#include <QPainter>
+#include <QImage>
+
+QT_BEGIN_NAMESPACE
+  namespace Ui { class ShowImagesDialog;}
+QT_END_NAMESPACE
+
+  class ShowImagesDialog : public QDialog
+  {
+    Q_OBJECT
+
+      public:
+    ShowImagesDialog(QWidget *parent = nullptr)
+      ~ShowImagesDialog();
+    protected:
+    //绘图事件处理函数
+		void paintEvent(QPaintEvent *event);
+    private:
+    Ui::ShowImagesDialog *ui;
+    int m_index; //图片的索引
+  };
+
+#endif //SHOWIMAGESDOALOG_H
+```
+
+.cpp
+
+```c++
+#include "showimagesdialog.h"
+#include "ui->showimagesdialog.h"
+
+ShowImagesDialog::ShowImagesDialog(QWidget *parent)
+  :QDialog(parent), ui(new Ui::ShowImagesDialog)
+  {
+    ui->setupUi(this);
+    
+    m_index = 0;
+  }
+ShowImagesDialog::~ShowImagesDialog()
+{
+  delete ui;
+}
+
+void ShowImagesDialog::paintEvent(QPaintEvent *event)
+{
+  Q_UNUSED(event) //宏 代表该参数不使用
+  //创建画家类对象
+  QPainter painter(this);
+  
+  //获取绘图区域
+  QRect rect = ui->frame->frameRect();
+  //坐标系的平移
+  rect.translate(ui->frame->pos());
+  
+  //构建一张图片
+  QImage image(":/images/" + QString::number(m_index) +".jpg"); //:冒号代表该资源来自资源文件
+  
+  //使用painter
+  painter.drawImage(rect, image);
+}
+
+//上一页
+void ShowImagesDialog::on_btnPrev_clicked()
+{
+  if(--m_index < 0) m_index = 7;
+  this->update(); // 触发绘图事件的产生 产生信号 调用绘图事件处理函数
+}
+
+//下一页
+void ShowImagesDialog::on_btnNext_clicked()
+{
+  if(++m_index > 7) m_index = 1;
+  this->update();
+}
+
+void ShowImagesDialog::on_btnClose_clicked()
+{
+  this->close;
+}
+```
+
