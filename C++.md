@@ -160,6 +160,12 @@ again:
 
 
 
+## 宏开关
+
+
+
+
+
 # Linux基础
 
 [Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf](pdf_note\Linux系统编程-第02天（vim-gcc-动态库静态库）.pdf) 

@@ -954,3 +954,161 @@ void ShowImagesDialog::on_btnClose_clicked()
 }
 ```
 
+## 远程视频监控系统
+
+![image-20240207141507554](QT.assets/image-20240207141507554.png)
+
+![image-20240207143227798](QT.assets/image-20240207143227798.png)
+
+uvc usb接口的摄像头 笔记本自带的摄像头也遵循该协议
+
+从网络传输的视频即为一帧图片 当放映一秒钟24帧以上时 人眼感觉为连续党的视频
+
+
+
+![image-20240207144032412](QT.assets/image-20240207144032412.png)
+
+**Mjpg_streamer 框架图**
+
+
+
+![image-20240207144649679](QT.assets/image-20240207144649679.png)
+
+![image-20240207144954689](QT.assets/image-20240207144954689.png)
+
+![image-20240207145137554](QT.assets/image-20240207145137554.png)
+
+![image-20240207145508479](QT.assets/image-20240207145508479.png)
+
+![image-20240207145659407](QT.assets/image-20240207145659407.png)
+
+![image-20240207151014106](QT.assets/image-20240207151014106.png)
+
+dev文件内装入的是设备的名称
+
+
+
+
+
+
+
+### OpenCV图像处理
+
+![image-20240207153239159](QT.assets/image-20240207153239159.png)
+
+单独的技术  用cpp编写
+
+![image-20240207153543649](QT.assets/image-20240207153543649.png)
+
+**MinGW** 编译器
+
+![image-20240207154721396](QT.assets/image-20240207154721396.png)
+
+Widget.h
+
+.hpp 文件 即.h和.cpp写在一起  函数的定义和声明
+
+```c++
+#ifndef WIDGET_H
+#define WIDGET_H
+
+#include <QWidget>
+#include <QImage>
+#include <opencv2/imgproc.hpp>
+using namespace cv;
+
+QT_BEGIN_NAMESPACE
+  namespace Ui
+{
+  class Widget;
+}
+
+QT_END_NAMESPACE
+
+  class Widget:public QWidget
+  {
+    Q_OBJECT
+      public:
+    Widget(QWidget* parent = nullptr);
+    ~Widget();
+    //界面初始化
+   	void initWidget();
+    //处理图片
+    void imgProc(float contrast, int brightness);
+    //显示图片
+    void imgShow();
+    
+    private:
+    Ui::wideget* ui;
+
+    Mat myImg; //opencv保存图片数据
+    QImage myQImg; //QT保存图片数据
+  };
+
+#endif //WIDGET_H
+
+
+```
+
+
+
+```c++
+#include "Widget.h"
+#include "ui_widget.h"
+
+Widget::Widget(QWidget* parent)
+  :QWidget(parent), ui(new UI::Widget)
+  {
+    ui->setupUi(this);
+    setWindowsFlag(Qt::MSWindowsFixedSizeDialogHint);//设置窗口大小不可改变
+    initWidget();
+  }
+
+Widget::-Widget()
+{
+  delete ui;
+}
+
+//界面初始化
+
+void Widget::initWidget()
+{
+  QString imgPath = "img path";
+  Mat imgDate = imread(imgpath.toLatin1().date() ); //读取图片数据
+  cvtColor(imgData, imgData, COLOR_BGR2RGB); 
+  myImg = imgData;
+  myQImg = QImage(imgData.data, imgData.cols, imgData.rows, QImage::Format_RGB888);
+	
+  imgShow();
+}
+
+void Widget::imgShow()
+{
+  ui->labelView->setPixmap(QPixmap::fromImage(myQImg.scaled(ui->labelView->size(), Qt::KeepAspectRatio)))
+}
+
+void Widget::imgProc(float contrast, int brightness)
+{
+  Mat imgSrc = myImg;
+  Mat imgDest = Mat::zeros(imgSrc.size(), imgSrc.type())//初始生成一个空的零像素
+	imgSrc.convertTo(imgDest, -1, contrast, brightness);
+  myQImg = QImage(imgDest.data, imgDest.cols, imgDest.row, QImage::Format_RGB888);
+  imgShow();
+}
+
+
+//对比度滑块 槽函数
+void Widget::on_verticalSliderCOntrast_valueChanged(int value)
+{
+	imgProc(value/33.3, ui->verticalSliderBrightness->value());
+}
+
+//亮度滑块
+void Widget::on_verticalSliderBrightness_valueChanged(int value)
+{
+  imgproc(ui->verticalSliderContrast->value()/33/3, value);
+}
+
+
+```
+
