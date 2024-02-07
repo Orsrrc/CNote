@@ -954,45 +954,11 @@ void ShowImagesDialog::on_btnClose_clicked()
 }
 ```
 
-## 远程视频监控系统
-
-![image-20240207141507554](QT.assets/image-20240207141507554.png)
-
-![image-20240207143227798](QT.assets/image-20240207143227798.png)
-
-uvc usb接口的摄像头 笔记本自带的摄像头也遵循该协议
-
-从网络传输的视频即为一帧图片 当放映一秒钟24帧以上时 人眼感觉为连续党的视频
-
-
-
-![image-20240207144032412](QT.assets/image-20240207144032412.png)
-
-**Mjpg_streamer 框架图**
-
-
-
-![image-20240207144649679](QT.assets/image-20240207144649679.png)
-
-![image-20240207144954689](QT.assets/image-20240207144954689.png)
-
-![image-20240207145137554](QT.assets/image-20240207145137554.png)
-
-![image-20240207145508479](QT.assets/image-20240207145508479.png)
-
-![image-20240207145659407](QT.assets/image-20240207145659407.png)
-
-![image-20240207151014106](QT.assets/image-20240207151014106.png)
-
-dev文件内装入的是设备的名称
 
 
 
 
-
-
-
-### OpenCV图像处理
+## OpenCV图像处理
 
 ![image-20240207153239159](QT.assets/image-20240207153239159.png)
 
@@ -1003,6 +969,12 @@ dev文件内装入的是设备的名称
 **MinGW** 编译器
 
 ![image-20240207154721396](QT.assets/image-20240207154721396.png)
+
+在包含头文件时可以从该INCLUDEPATH下去寻找 而不用去写绝对路径
+
+LIBS 动态库
+
+
 
 Widget.h
 
@@ -1112,3 +1084,394 @@ void Widget::on_verticalSliderBrightness_valueChanged(int value)
 
 ```
 
+
+
+![image-20240207164718485](QT.assets/image-20240207164718485.png)
+
+两张图片重叠 移动滑块两张图片的透明度逐渐变化
+
+
+
+
+
+
+
+![image-20240207165758046](QT.assets/image-20240207165758046.png)![image-20240207165758232](QT.assets/image-20240207165758232.png)
+
+
+
+**wideget.h**
+
+```c++
+#ifndef WIDGET_H
+#define WIDGET_H
+
+#include <QWidget>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+using namespace cv;
+using namespace std;
+
+QT_BEGIN_NAMESPACE
+  namespace Ui {class Widget:}
+QT_END_NAMESPACE
+
+  class Widget:public QWidget
+  {
+    Q_OBJECT
+      public :
+    widget(QWidget* parent = nullptr);
+    ~Widget();
+		void initWidget();
+    void imgProc();
+    void imgShow();
+    private；
+      Ui::Widget* ui;
+			Mat myImg;
+    QImage myQImg;
+    	
+  };
+
+#endif //WIDGET_H
+```
+
+
+
+**widget.cpp**
+
+```c++
+#include "widget.h"
+#include "ui_widget.h"
+
+Widget::Widget(QWidget *parent)
+  :QWidget(parent), ui(new Ui::widget)
+  {
+    ui->setupUi(this);
+    ui->setWindosFlag(Qt::MSWindowsFixedSizeDialogHint);
+    initWidget();
+  }
+
+Widget::~Widget()
+{
+  delete ui;
+}
+
+//界面初始化
+void Widget::initWidget()
+{
+  QString imgPath = "../OpenCVFace"； //图片路径
+  Mat imgData = imread(imgPath.toLatin1().data());
+  cvtColor(imgData, imgData, COLOR_BGR2RGB);
+  myImg = imgData;
+  myQImg = QImage(imgData.data, imgData.cols, imgData.rows, QImage::Format_RGB888);
+	imgShow();
+}
+
+//图片的显示
+void Widget::imgShow()
+{
+  ui->labelView->setPixmap(Qpixap::fromImage(myQImg.scaled(ui->labelView->size(), Qt::KeepAspectRation)));
+  
+}
+
+//图片处理 人脸识别
+void Widget::imgProc()
+{
+  CascadeClassifier face_detector; //定义人脸识别分类器
+  CascadeClassifier eye_detector; //定义人眼识别分类器
+  string faceDetectorPath = "../open... .xml";
+  face_detector.load(faceDetectorPath); //加载人脸识别分类器
+  string eyeDetectorPath = "../ ..... .xml"; // 加载人眼识别分类器
+  eye_detector.load(eyeDetectorPath);
+  
+  vector<Rect> faces; //保存识别出来的人脸信息
+  Mat imgSrc = myImg;
+  Mat imgGray; //对图片进行灰度处理
+  cvtColor(imgSrc, imgGray, CV_RGB2GRAY); //将彩色图片转换为灰度图片
+  equalizeHist(imgGray, imgGray); //直方图均衡化 图片增强
+  
+  //多尺寸识别
+  face_detector.detectMultiScale(
+    imgGray, //检测图片
+    faces, //保存检测结果的容器
+    1.1, //每次检测时的缩放比例
+    3， //至少检测次数 确认目标
+    0,
+    size(30, 30) //检测的最小尺寸
+                                ); //多尺寸缩放识别
+  
+  for (unsigned int i = 0; i < faces.size(); i++) //for int i : faces
+  {
+    Point faceCenter(faces[i].x + faces[i].width*0.5, faces[i].y+ face[i].height*0.5);
+    ellipse(imgSrc, faceCenter, Size(faces[i].windth*0.5, 
+                                     faces[i].height*0.5)
+           0,0,360,
+           Scalar(255,0,255),
+            4,8,0
+     );
+    
+    Mat faceROI = imgGray(faces[i]); //检测出的人脸
+    vector<Rect> eyes; //人眼信息
+    eye_datector.detectMultScale(faceROI, eyes, 1.1, 3, 0, size(30, 30));
+  	for(unsigned int  j = 0; j < eyes.size(); j++)
+    {
+      Point eyeCenter(faces[i].x + eyes[j].x + eyes[j].width*0.5,
+                      faces[i].x + eyes[j].y + eyes[j].height*0.5
+                     );
+      int r = cvRound((eyes[j].width + eyes[j].height)*0.25);
+      circle(imgSrc, eyeCenter, r, Scalar(255, 0, 0), 4, 8, 0);
+      
+      
+    }
+  }
+  Mat imgDest = imgSrc;
+  myQImg = QImage(imgDest.data, imgDest.cols, imgDest.rows, QImage::Format_RGB888);
+
+
+}
+
+void Widget::on_btnDetect_clicked()
+{
+  imgProc();
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+## 远程视频监控系统
+
+![image-20240207141507554](QT.assets/image-20240207141507554.png)
+
+![image-20240207143227798](QT.assets/image-20240207143227798.png)
+
+uvc usb接口的摄像头 笔记本自带的摄像头也遵循该协议
+
+从网络传输的视频即为一帧图片 当放映一秒钟24帧以上时 人眼感觉为连续党的视频
+
+
+
+![image-20240207144032412](QT.assets/image-20240207144032412.png)
+
+**Mjpg_streamer 框架图**
+
+
+
+![image-20240207144649679](QT.assets/image-20240207144649679.png)
+
+![image-20240207144954689](QT.assets/image-20240207144954689.png)
+
+![image-20240207145137554](QT.assets/image-20240207145137554.png)
+
+![image-20240207145508479](QT.assets/image-20240207145508479.png)
+
+![image-20240207145659407](QT.assets/image-20240207145659407.png)
+
+![image-20240207151014106](QT.assets/image-20240207151014106.png)
+
+dev文件内装入的是设备的名称
+
+
+
+实现结果
+
+![image-20240207185905023](QT.assets/image-20240207185905023.png)
+
+
+
+qt中多线程 有两种方式
+
+>继承QThread 定义线程类
+>
+>movetothread 将工作对象移动到线程
+
+
+
+**widget.h**
+
+```C++
+#ifndef WIDGET_H
+#define WIDGET_H
+
+#include <QWidget>
+#include <QNetworkAccessManager>
+#include <QNetworkRequest>
+#include <QNetworkReply>
+#include <QUrl>
+#include <QThread>
+#include <QLabel>
+#include "facedetection.h"
+
+
+QT_BEGIN_NAMESPACE
+  namespace Ui {class Widget;}
+QT_END_NAMESPACE
+
+  class Widget:public QWidget
+  {
+    Q_OBJECT
+      public:
+    Widget(QWidget* parent = nullptr);
+    ~Widget();
+
+    signals:
+    //自定义信号
+    void imageAcquired(QImage); //拿到一个图片时 自定义信号
+
+    private:
+    void onMjpgReayread(); //自定义槽函数 接收到视频流数据时信号处理
+
+    private:
+    Ui::Widget *ui;
+
+    QNetworkAccessManage* manager;
+    QNetworkReques request; //根据url生成 url包
+
+    QNetworkReply *mjpgReply; //获取视频流响应数据包
+    QByteArray mjpgBuffer; //接收数据的缓冲区
+
+    QImage mjpgImg; //保存从视频流中截取的图片帧
+
+		QThread* thread;
+    FaceDetectopm* detectWork; //人脸检测工作对象
+		
+    QVector<QLabel*> labelJpegs; //保存显示的快照
+    int m_index; //索引
+  };
+
+#endif //WIDGET_H
+```
+
+**Widget.cpp**
+
+```c++
+#include "widget.h"
+#include "ui_widget.h"
+
+Widget::Widget(QWidget *parent)
+  :QWiget(parent), ui(new Ui::Widget)
+  {
+    ui->setupUi(this);
+    setWindowFlag(Qt::MsWindowsFixedSizeDialogHint);
+
+    labelJpegs.append(ui->labelJpeg1);
+    labelJpegs.append(ui->labelJpeg2);
+    labelJpegs.append(ui->labelJpeg3);
+    labelJpegs.append(ui->labelJpeg4);
+    
+    
+    manager = new QNetworkaccessManager(this);
+    thread = new QThread(this);
+    detectWork = new FaceDetection; 
+    //将一个进程调用到一个线程执行的时候 
+    //不能指定父对象
+    detectWork->moveToThread(thread);
+    connect(this, SIGNAL(imageAcqueired(QIage)), detectWork, SLOT(onFaceDetection(QImage)));
+    
+    thread->start();
+    
+  }
+
+Widget::~Widget()
+{
+  deteket manage;
+  manage = nullptr;
+  thread->terminate();
+  thread->wait();
+	detele ui;
+}
+
+void Widget::on_btnGetMJpg_clicked()
+{
+  // 准备请求包
+  
+}
+
+
+```
+
+![image-20240207191359878](QT.assets/image-20240207191359878.png)
+
+
+
+![image-20240207191941942](QT.assets/image-20240207191941942.png)
+
+
+
+![image-20240207192042795](QT.assets/image-20240207192042795.png)
+
+**facedetection.h**
+
+```c++
+#ifndef FACEDETECTION_H
+#define FACEDETECTION_H
+
+#include <QObejct>
+
+class FaceDEtection : public QObject
+{
+  Q_OBEJCT
+    public:
+  explicit FaceDEtection(QObject* paren = nullptr);
+  signals:
+  public slots:
+		void onFaceDetection(QImage img); //人脸识别
+};
+```
+
+**facedetection.cpp**
+
+```c++
+#include "facedetection.h"
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <QImage>
+#include <QDebug>
+using namespace cv;
+using namespace std;
+
+
+void FaceDetection::onFaceDetection(QImage img)
+{
+	//将图像转换为RGB24 24bit 彩色
+  QIamge image = img.converToFormat(QImage::Format_RGB888);
+  
+  //将QImage格式转换为Mat格式
+  
+  Mat matImg = Mat(imgage.height(), image.width(), CV_8UC,
+                  image.bits(),
+                  image.bytesPerLine()); //可以将mat类型的图片想象成一个二维矩阵  点阵图  每一个像素点保存对应的颜色数据
+	//进行灰度处理 将图片进行灰度处理
+  Mat imageGray;
+  cvtColor(matImg, imgGray, CV_RGB2GRAY);
+  
+  //加载分类器
+  CascadeClassifier faceDetector;
+  
+  string detectPath = "分类器路径";
+  faceDetector.load(detectPath);
+  vector<Rect> faces;
+  equalizeHist(imgGray, imgGray);
+  
+  //多尺寸检测人脸
+  faceDetector.detectMultiScale(imgGray, faces, 1.1, 3, 0, Size(30, 30));
+  
+  if(!faces.empty())
+  {
+    QString str = "检测到有" + QString::number(faces.size()) +"人进入监控区域";
+    qDebug() << str;
+  	
+  
+}
+```
+
+![image-20240207193608451](QT.assets/image-20240207193608451.png)
