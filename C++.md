@@ -2043,9 +2043,69 @@ C/S cilent/server 客户端与服务器
 
 
 
-# API
+## API
 
-## Socket()
+### 地址族
+
+```c++
+/*
+ * Address families.
+ */
+#define AF_UNSPEC       0               /* unspecified */
+#define AF_UNIX         1               /* local to host (pipes) */
+#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+#define AF_LOCAL        AF_UNIX         /* backward compatibility */
+#endif  /* (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+#define AF_INET         2               /* internetwork: UDP, TCP, etc. */
+#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+#define AF_IMPLINK      3               /* arpanet imp addresses */
+#define AF_PUP          4               /* pup protocols: e.g. BSP */
+#define AF_CHAOS        5               /* mit CHAOS protocols */
+#define AF_NS           6               /* XEROX NS protocols */
+#define AF_ISO          7               /* ISO protocols */
+#define AF_OSI          AF_ISO
+#define AF_ECMA         8               /* European computer manufacturers */
+#define AF_DATAKIT      9               /* datakit protocols */
+#define AF_CCITT        10              /* CCITT protocols, X.25 etc */
+#define AF_SNA          11              /* IBM SNA */
+#define AF_DECnet       12              /* DECnet */
+#define AF_DLI          13              /* DEC Direct data link interface */
+#define AF_LAT          14              /* LAT */
+#define AF_HYLINK       15              /* NSC Hyperchannel */
+#define AF_APPLETALK    16              /* Apple Talk */
+#define AF_ROUTE        17              /* Internal Routing Protocol */
+#define AF_LINK         18              /* Link layer interface */
+#define pseudo_AF_XTP   19              /* eXpress Transfer Protocol (no AF) */
+#define AF_COIP         20              /* connection-oriented IP, aka ST II */
+#define AF_CNT          21              /* Computer Network Technology */
+#define pseudo_AF_RTIP  22              /* Help Identify RTIP packets */
+#define AF_IPX          23              /* Novell Internet Protocol */
+#define AF_SIP          24              /* Simple Internet Protocol */
+#define pseudo_AF_PIP   25              /* Help Identify PIP packets */
+#define AF_NDRV         27              /* Network Driver 'raw' access */
+#define AF_ISDN         28              /* Integrated Services Digital Network */
+#define AF_E164         AF_ISDN         /* CCITT E.164 recommendation */
+#define pseudo_AF_KEY   29              /* Internal key-management function */
+#endif  /* (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+#define AF_INET6        30              /* IPv6 */
+#if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
+#define AF_NATM         31              /* native ATM access */
+#define AF_SYSTEM       32              /* Kernel event messages */
+#define AF_NETBIOS      33              /* NetBIOS */
+#define AF_PPP          34              /* PPP communication protocol */
+#define pseudo_AF_HDRCMPLT 35           /* Used by BPF to not rewrite headers
+	                                 *  in interface output routine */
+#define AF_RESERVED_36  36              /* Reserved for internal usage */
+#define AF_IEEE80211    37              /* IEEE 802.11 protocol */
+#define AF_UTUN         38
+#define AF_VSOCK        40              /* VM Sockets */
+#define AF_MAX          41
+#endif  /* (!_POSIX_C_SOURCE || _DARWIN_C_SOURCE) */
+```
+
+
+
+### Socket()
 
 #include <sys/socket.h>
 
@@ -2060,7 +2120,7 @@ int socket(int domain, int type, int protocol);
 - PF_INET6 IPV6通信
 - PF_PACKET 底层包的网络通信
 
-**所有的PF\*  都可以更换为AF ***
+**所有的PF\*  都可以更换为AF * 因为在源代码中 所有的仅对该变量的声明的名字重新定义没有做别的改变**
 
 type 套接字类型
 
@@ -2070,9 +2130,9 @@ type 套接字类型
 
 **对于使用TCP 和 UDP的套接字   那么在参数三protocol 传入0即可**
 
-当传入套接字在传输层以下  **那么需要用户指定每一层的协议CNVXZ,./**
+当传入套接字在传输层以下  **那么需要用户指定每一层的协议**
 
-### 工作在物,./理层的套接字的应用
+#### 工作在物理层的套接字的应用
 
 由于物理层需要接收所有数据包 则可以用于抓包
 
@@ -2080,7 +2140,53 @@ PF_PACKET 底层包的网络通信
 
 SOCK_RAW 创建在工作在传输层以下的套接字
 
-## Bind()
+
+
+### Inet_addr
+
+**#include** **<arpa/inet.h>**
+
+   in_addr_t
+
+   **inet_addr**(const char *cp);
+
+   int
+
+   **inet_aton**(const char *cp, struct in_addr *pin);
+
+   in_addr_t
+
+   **inet_lnaof**(struct in_addr in);
+
+   struct in_addr
+
+   **inet_makeaddr**(in_addr_t net, in_addr_t lna);
+
+   in_addr_t
+
+   **inet_netof**(struct in_addr in);
+
+   in_addr_t
+
+   **inet_network**(const char *cp);
+
+   char *
+
+   **inet_ntoa**(struct in_addr in);
+
+   const char *
+
+   **inet_ntop**(int af, const void * restrict src, char * restrict dst, socklen_t size);
+
+   int
+
+   **inet_pton**(int af, const char * restrict src, void * restrict dst);
+
+
+
+
+
+### Bind()
 
 **#include** **<sys/socket.h>**
 
@@ -2106,11 +2212,68 @@ SOCK_RAW 创建在工作在传输层以下的套接字
 
  **Upon successful completion, a value of 0 is returned.** Otherwise, **a value of -1 is**  **returned** and the global integer variable errno is set to indicate the error.
 
+#### Sockaddr 与 sockaddr_in
+
+两者都是在绑定地址时使用
+
+Sockaddr 在socket.h中定义
+
+sockaddr_in 在netinet/in.h 中
+
+由于sockaddr 在绑定时将所有的数据都放在sa_data中 不方便使用
+
+Sockaddr_in 作为一种改进版 将各个部分的数据分离
+
+```c++
+struct sockaddr_in {
+	__uint8_t       sin_len;
+	sa_family_t     sin_family;
+	in_port_t       sin_port;
+	struct  in_addr sin_addr;
+	char            sin_zero[8];
+};
+
+
+struct sockaddr {
+	__uint8_t       sa_len;         /* total length */
+	sa_family_t     sa_family;      /* [XSI] address family */
+#if __has_ptrcheck
+	char            sa_data[__counted_by(sa_len - 2)];
+#else
+	char            sa_data[14];    /* [XSI] addr value (actually smaller or larger) */
+#endif
+};
+```
+
+>  struct sockaddr_in ser;
+>   ser.sin_family = AF_INET;
+>   ser.sin_port = htons(999);
+>   //绑定地址
+>   if(bind(sockfd, (struct sockaddr*)&ser, sizeof(ser)) == -1)
+>   {
+>     perror("bind");
+>     return -1;
+>   }
 
 
 
 
-## 主机字节序与网络字节序的转换
+
+
+
+> //准备地址结构
+> 	struct sockaddr_in ser;
+> 	ser.sin_family = AF_INET;
+> 	ser.sin_port = htons(8888); 
+> 	ser.sin_addr.s_addr = inet_addr("服务器IP地址  点分十进制");
+> //请求连接
+> 	if( connect(sockfd, (struct sockaddr*)&ser, sizeof(ser)) == -1)
+>   {
+>     perror("connect");
+>     return -1;
+>   }
+
+### 主机字节序与网络字节序的转换
 
 **小端  主机字节序  大端  网络字节序**
 
@@ -2152,9 +2315,153 @@ char* inet_ntoa(struct in_addr nip);
 
 
 
-## wrap
+### recvfrom()
 
-### wrap.h
+**#include** **<sys/socket.h>**
+
+   ssize_t
+
+   **recv**(int socket, void *buffer, size_t length, int flags);
+
+   ssize_t
+
+   **recvfrom**(int socket, 
+
+​		      void *restrict buffer, 
+
+​		      size_t length,
+
+ 		     int flags,
+
+​                      struct sockaddr *restrict address,
+
+​		      socklen_t *restrict address_len);
+
+ssize_t  **recvmsg**(int socket,
+
+​			      struct msghdr *message, 
+
+​			      int flags);
+
+
+
+> The **recvfrom**() and **recvmsg**() system calls are used to receive messages from a  socket, and may be used to receive data on a socket whether or not it is connection-oriented.
+>
+>    If address is not a null pointer and the socket is not connection-oriented, the
+>
+>    source address of the message is filled in. The address_len argument is a value-
+>
+>    result argument, initialized to the size of the buffer associated with address, and
+>
+>    modified on return to indicate the actual size of the address stored there.
+>
+> > All three routines return the length of the message on successful completion. If a
+> >
+> >    message is too long to fit in the supplied buffer, excess bytes may be discarded
+> >
+> >    depending on the type of socket the message is received from (see socket(2)).
+> >
+> > 
+> >
+> >    **If no messages are available at the socket, the receive call waits for a message to**
+> >
+> >    **arrive, unless the socket is nonblocking** (see fcntl(2)) in which case the value -1  is returned and the external variable errno set to EAGAIN. The receive calls
+> >
+> >    normally return any data available, up to the requested amount, rather than waiting
+> >
+> >    for receipt of the full amount requested; this behavior is affected by the socket-
+> >
+> >    level options SO_RCVLOWAT and SO_RCVTIMEO described in getsockopt(2).
+> >
+> >    The select(2) system call may be used to determine when more data arrive.
+> >
+> >    **If no messages are available to be received and the peer has performed an orderly**
+> >
+> >    **shutdown, the value 0 is returned.**
+> >
+> >    The flags argument to a **recv**() function is formed by or'ing one or more of the
+> >
+> >    values:
+> >
+> > ​      MSG_OOB    process out-of-band data
+> >
+> > ​      MSG_PEEK    peek at incoming message
+> >
+> > ​      MSG_WAITALL  wait for full request or error
+
+  返回值：
+
+These calls return the number of bytes received, or -1 if an error occurred.
+
+   For TCP sockets, the return value 0 means the peer has closed its half side of the connection.
+
+```c++
+char buf[128] = {};
+    struct sockaddr_in cli;
+    socklen_t len = sizeof(cli);
+    ssize_t size = recvfrom(sockfd, buf, sizeof(buf) - 1, 0, (struct sockaddr*)&cli, &len);
+    if(size == -1)
+    {
+      perror("recvfrom");
+      return -1;
+    }
+```
+
+
+
+### Send()
+
+**#include** **<sys/socket.h>**
+
+   ssize_t
+
+   **send**(int socket, const void *buffer, size_t length, int flags);
+
+   ssize_t
+
+   **sendmsg**(int socket, const struct msghdr *message, int flags);
+
+   ssize_t
+
+   **sendto**(int socket, const void *buffer, size_t length, int flags,
+
+​     const struct sockaddr *dest_addr, socklen_t dest_len); 
+
+
+
+**send**(), **sendto**(), and **sendmsg**() are used to transmit a message to another socket.
+
+   **send() may be used only when the socket is in a connected state, while sendto() and**
+
+   **sendmsg() may be used at any time.**
+
+send用于已建立链接的发送数据 即面向连接的传输  
+
+
+
+> The address of the target is given by dest_addr with dest_len specifying its size.
+>
+> The length of the message is given by length. If the message is too long to pass
+>
+>    atomically through the underlying protocol, the error EMSGSIZE is returned, and the
+>
+>    message is not transmitted.
+
+   返回值
+
+Upon successful completion, the number of bytes which were sent is returned.
+
+   Otherwise, -1 is returned and the global variable errno is set to indicate the
+
+   error.
+
+
+
+
+
+### wrap
+
+#### wrap.h
 
 ```c++
 #ifndef __WRAP_H_
@@ -2185,7 +2492,7 @@ int tcp4bind(short port,const char *IP);
 #endif
 ```
 
-### wrap.c
+#### wrap.c
 
 ```c++
 // #include <stdlib.h>
@@ -2411,7 +2718,7 @@ int tcp4bind(short port,const char *IP)
 
 
 
-## Select()
+### Select()
 
 > select()  and  pselect() allow a program to monitor multiple file descriptors, waiting until one or more
 >        of the file descriptors become "ready" for some class of I/O operation (e.g., input possible).   A  file
@@ -2488,7 +2795,7 @@ int tcp4bind(short port,const char *IP)
 >void FD_SET(int fd, fd_set *set);
 >void FD_ZERO(fd_set *set);
 
-### 监听原理
+#### 监听原理
 
 ![Image [2]](C++.assets/Image [2].png)
 
@@ -3001,6 +3308,7 @@ int main(void)
     perror("socket");
     return -1;
   }
+  
   //准备地址结构
   printf("服务器:组织地址结构\n");
   struct sockaddr_in ser;
@@ -3061,7 +3369,7 @@ int main(void)
   ser.sin_family = AF_INET;
   ser.sin_port = htons(9999);
   ser.sin_addr.s_addr = inet_addr("192.168.222.128");
- 	return 0;
+  
 	//数据处理
   printf("客户端:业务处理\n");
   for(;;)
