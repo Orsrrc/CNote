@@ -1238,16 +1238,6 @@ void Widget::on_btnDetect_clicked()
 
 ```
 
-
-
-
-
-
-
-
-
-
-
 ## 远程视频监控系统
 
 ![image-20240207141507554](QT.assets/image-20240207141507554.png)
