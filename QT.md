@@ -652,7 +652,7 @@ void CalculatorDialog::calc(void)
 
 
 
-### **使用复合方式生成.h
+### 使用复合方式生成.h
 
 ```c++
 #ifndef __CALCULATORDIALOG_H
