@@ -2,6 +2,12 @@
 
 # C语言知识点
 
+## override(重载)
+
+`override` 是 C++11 引入的关键字，旧版本需通过其他方式（如 IDE 提示）检查重载正确性。在函数的参数后面添加
+
+例如`demo(int i , int j) override;` 
+
 ## 二级指针
 
 一个指针  保存一个指针的地址 而不是指针所指向的内容的地址
@@ -75,10 +81,6 @@ int main(void)
         return 0;
 }
 
-
-  
-  
-  
 
 a point
 a == 0xffffe70e5324
