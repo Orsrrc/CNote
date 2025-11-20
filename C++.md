@@ -20,6 +20,97 @@ int main(int argc, char *argv[], char ** env);
 
 对于**argc 总是大于等于1的，其默认有一个参数就是.exe文件**，其余的我们要从命令行中传入的参数从第二个开始计算`.exe x y z`。
 
+## 库文件
+
+为了保护我们代码开发者的知识产权 我们给用户提供功能，但不能提供源代码
+
+因此，我们在编写API的时候，就需要将接口定义在.h文件中，将函数实现写在.cpp文件中，然后将其编译为静态库或者动态库，提供给用户。即发送文件给用户的时候，不能够提供.cpp文件（如果是开源项目则可以提供）。
+
+linux/mac静态库
+
+```shell
+g++ -c your_api_impl.cpp -I./include -fPIC
+ar rcs lib/libyourlib.a your_api_impl.o
+```
+
+linux/mac动态库
+
+```shell
+g++ -shared -fPIC -o lib/libyourlib.so your_api_impl.cpp -I./include
+```
+
+windows：基于virtual studio
+
+```shell
+cl /c your_api_impl.cpp /I.\include
+lib your_api_impl.obj /OUT:lib\yourlib.lib
+# 或者动态库
+cl /LD your_api_impl.cpp /I.\include /link /OUT:bin\yourlib.dll
+```
+
+用户在使用时引入对应的.h文件
+
+编译时添加库即可
+
+```c
+# Linux
+g++ demo.cpp -I./include -L./lib -lyourlib -o demo
+
+# Windows
+cl demo.cpp /I.\include /link yourlib.lib
+```
+
+符号隐藏
+
+```c
+// 编译时隐藏内部符号
+g++ -fvisibility=hidden -shared -fPIC -o libyourlib.so your_api_impl.cpp
+```
+
+### 动态库与静态库的区别
+
+#### 静态库（Static Library）
+
+- **编译时链接**：代码在编译时被复制到最终的可执行文件中
+- **文件扩展名**：`.a`（Linux）、`.lib`（Windows）
+- **独立运行**：生成的可执行文件不依赖外部库文件
+
+#### 动态库（Dynamic Library）
+
+- **运行时链接**：代码在程序运行时才被加载到内存
+- **文件扩展名**：`.so`（Linux）、`.dll`（Windows）、`.dylib`（Mac）
+- **依赖关系**：可执行文件需要动态库文件才能运行
+
+### 静态库使用步骤
+
+```bash
+# 1. 编译静态库
+g++ -c mylib.cpp -o mylib.o
+ar rcs libmylib.a mylib.o
+
+# 2. 链接到主程序
+g++ main.cpp -L. -lmylib -o myapp
+
+# 3. 运行（无需额外文件）
+./myapp
+```
+
+动态库使用流程
+
+```bash
+# 1. 编译动态库
+g++ -shared -fPIC -o libmylib.so mylib.cpp
+
+# 2. 链接到主程序
+g++ main.cpp -L. -lmylib -o myapp
+
+# 3. 运行前设置库路径
+export LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH
+./myapp
+```
+
+
+
 ## 字面量（Literal）
 
 是编程中**直接表示固定值**的符号，相当于“**所见即所得**”的数据表达方式。它在代码中直接写出具体值，无需通过变量存储或额外计算生成。
@@ -236,6 +327,209 @@ fopen还可以用来创建文件，即传入的路径如果不存在该文件，
 
 
 
+
+
+## 枚举与枚举类
+
+### 枚举
+
+```c
+enum 枚举名称 {
+    枚举常量1,
+    枚举常量2,
+    // ...
+};
+```
+
+自定义枚举数据
+
+```c
+enum Status {
+    SUCCESS = 200,
+    NOT_FOUND = 404,
+    ERROR = 500
+};
+
+// 部分赋值（未赋值的常量会自动递增）
+enum Color {
+    RED = 1,
+    GREEN,  // 自动为 2
+    BLUE    // 自动为 3
+};
+```
+
+typedefine 简化代码
+
+```c
+typedef enum {
+    OFF,
+    ON
+} SwitchState;
+
+int main() {
+    SwitchState light = ON; // 直接使用别名
+    return 0;
+}
+```
+
+### 枚举类                                                     
+
+基本语法
+
+```c
+enum class 枚举名称 {
+    枚举常量1,
+    枚举常量2,
+    // ...
+};
+```
+
+指定枚举类型
+
+```c
+#include <iostream>
+
+// 指定底层类型为 char
+enum class Status : char {
+    OK = 'O',
+    ERROR = 'E',
+    PENDING = 'P'
+};
+
+// 指定底层类型为 short
+enum class Flags : unsigned short {
+    READ = 0x01,
+    WRITE = 0x02,
+    EXECUTE = 0x04
+};
+
+int main() {
+    Status s = Status::OK;
+    Flags f = Flags::READ;
+    
+    std::cout << "Status size: " << sizeof(s) << " bytes" << std::endl; // 1 byte
+    std::cout << "Flags size: " << sizeof(f) << " bytes" << std::endl;  // 2 bytes
+    
+    return 0;
+}
+```
+
+字符串转换函数
+
+```c
+#include <iostream>
+#include <string>
+#include <unordered_map>
+
+enum class LogLevel {
+    DEBUG,
+    INFO,
+    WARNING,
+    ERROR
+};
+
+// 转换为字符串
+std::string to_string(LogLevel level) {
+    switch(level) {
+        case LogLevel::DEBUG: return "DEBUG";
+        case LogLevel::INFO: return "INFO";
+        case LogLevel::WARNING: return "WARNING";
+        case LogLevel::ERROR: return "ERROR";
+        default: return "UNKNOWN";
+    }
+}
+
+// 从字符串转换
+LogLevel from_string(const std::string& str) {
+    static const std::unordered_map<std::string, LogLevel> mapping = {
+        {"DEBUG", LogLevel::DEBUG},
+        {"INFO", LogLevel::INFO},
+        {"WARNING", LogLevel::WARNING},
+        {"ERROR", LogLevel::ERROR}
+    };
+    
+    auto it = mapping.find(str);
+    return (it != mapping.end()) ? it->second : LogLevel::INFO;
+}
+
+int main() {
+    LogLevel level = LogLevel::WARNING;
+    std::cout << to_string(level) << std::endl; // 输出: WARNING
+    
+    level = from_string("ERROR");
+    std::cout << to_string(level) << std::endl; // 输出: ERROR
+    
+    return 0;
+}
+```
+
+对比示例
+
+```c
+// 传统 enum - 有问题
+enum Color { RED, GREEN, BLUE };
+enum TrafficLight { RED, YELLOW, GREEN }; // 错误！RED, GREEN 重定义
+
+// enum class - 安全
+enum class Color { RED, GREEN, BLUE };
+enum class TrafficLight { RED, YELLOW, GREEN }; // 正确，作用域不同
+
+void example() {
+    // 传统 enum
+    Color c = RED;           // 直接使用
+    int value = c;           // 隐式转换
+    
+    // enum class
+    Color c2 = Color::RED;   // 需要作用域
+    // int value2 = c2;      // 错误！需要显式转换
+    int value2 = static_cast<int>(c2); // 正确
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # C++2.0新特性
 
 - 头文件
@@ -375,11 +669,49 @@ explicit对于构造函数有多个参数的时候:
 
 
 
+## =default,=delete
+
+通常，对于一个类，如果用户不编写构造函数，那么编译器就会自动给你添加一个default ctor 。如果是一个普通的类，那么default ctor是一个空函数
+
+如果该类继承于父类的话，那么就需要调用到父类的构造函数，此时调用的部分就在这个default ctor中。
+
+如果编写了ctor，但是在创建类的时候还是想要调用编译器给的那个什么都没有的默认构造函数的话，那么就用=default。
+
+![image-20251117122146171](./C++.assets/image-20251117122146171.png)
+
+构造函数、拷贝构造函数、拷贝复制、析构函数、搬移构造可以称作为big-five，这几种函数都是编译器会给出默认的版本，当用户自定义的时候采用用户的自定义函数。
+
+![image-20251117124238950](./C++.assets/image-20251117124238950.png)
+
+
+
+![image-20251117124748936](./C++.assets/image-20251117124748936.png)
+
+
+
+![image-20251117125035933](./C++.assets/image-20251117125035933.png)
+
+
+
+> 哪些类需要用户自行定义big-three？哪些使用编译器提供的默认函数即可？
+>
+> 类中如果携带了指针成员，那么该类就需要写出big-three函数。反之，使用默认即可。即是否需要使用指针来牵扯到一块内存。例如complex与string，由于complex已经确认了只有实部与虚部，而string需要更加广泛的接受多个字符，因此complex用编译器提供的即可而string需要写出big-three函数
+
+Complex：
+
+由于需要用到赋值操作，因此可以自行定义构造函数
+
+![image-20251117130059865](./C++.assets/image-20251117130059865.png)
 
 
 
 
 
+![image-20251117131116536](./C++.assets/image-20251117131116536.png)
+
+
+
+![image-20251117131459120](./C++.assets/image-20251117131459120.png)
 
 # Linux基础
 
@@ -2054,7 +2386,9 @@ ip地址转换为 mac地址
 
 ARP请求报文 由14个字节的mac头 和 28字节的arp报文组成
 
-其中mac头尾 以太网首部 这是每个包都必须要的 其内容尾 目的主机的MAC地址
+其中mac头尾 以太网首部 这是每个包都必须要的 其内容为
+
+目的主机的MAC地址
 
 源MAC地址
 
@@ -2166,11 +2500,7 @@ UDP 默认8个字节 TCP IP 都默认为20个字节
 
 ![image-20221116154335613](C++.assets/image-20221116154335613.png)
 
-
-
-
-
-从应用层开始 主机A的IP为 192.168.1.1/24 通过应用飞秋传输消息给主机B IP 192.168.1.2/24 
+从应用层开始 主机A的IP为 192.168.1.1/24 通过应用传输消息给主机B IP 192.168.1.2/24 
 
 其中 ![image-20221116154657956](C++.assets/image-20221116154657956.png)为物理地址
 
@@ -2324,7 +2654,7 @@ int socket(int domain, int type, int protocol);
 type 套接字类型
 
 - SOCK_STREAM TCP协议  流式套接字
-- SOCK_DGREAM UDB协议  数据报套接字
+- SOCK_DGREAM UDP协议  数据报套接字
 - SOCK_RAW 创建在工作在传输层以下的套接字
 
 **对于使用TCP 和 UDP的套接字   那么在参数三protocol 传入0即可**
@@ -2530,7 +2860,7 @@ char* inet_ntoa(struct in_addr nip);
 
 ​		      size_t length,
 
- 		     int flags,
+​		      int flags,
 
 ​                      struct sockaddr *restrict address,
 
@@ -3120,14 +3450,6 @@ int main(int argc, char* argv[])
 
 
 
-
-
-
-
-
-
-
-
 ## TCP编程模型
 
 ### 头文件
@@ -3142,12 +3464,10 @@ int main(int argc, char* argv[])
 >
 > <arpa/inet.h>
 
-
-
 **toupper函数**
 
 ```
-int toupper ( int c ); //转换为ASCII
+int toupper ( int c ); 
 ```
 
 > toupper Convert lowercase letter to uppercase
@@ -3164,7 +3484,7 @@ int toupper ( int c ); //转换为ASCII
 //服务器端
 //创建套接字
 int sockfd = socket(AF_INET, SOCK_STREAM, 0); //返回套接字描述符  
-//默认创建主动socket 无法接受
+//默认创建主动socket 无法接收
 if (sockfd == -1) //规定sockfd为-1 表示创建失败
 {
   perror("socket");
@@ -3172,13 +3492,13 @@ if (sockfd == -1) //规定sockfd为-1 表示创建失败
 }
 //准备地址结构 包括 地址族 ip地址  端口号
 struct sockaddr_int ser;
-ser.sin_family = AF_INET; //基于IPV4的同学
+ser.sin_family = AF_INET; //基于IPV4的协议
 ser.sin_port = htons(8888); //字节序转换
 ser.sin_addr.s_addr = inet_addr("192.168.222.128");//将字符串转换为整数
 //若端口号被占用  则绑定地址时会报错
 ser.sin_addr.s_addr = INADDR_ANY //接收任意IP地址数据
-  //绑定地址  将ip地址与socket绑定
-  bind(int sockfd, struct sockaddr const* addr, socklen_t addrlen);
+//绑定地址  将ip地址与socket绑定
+bind(int sockfd, struct sockaddr const* addr, socklen_t addrlen);
 //sockfd 套接字
 //sockaddr 强转为泛化的结构体
 //addrlen 地址的长度sizeof(ser)
@@ -3195,7 +3515,7 @@ if(listen(sockfd, 1024) == -1)//侦听套接字(该套接字负责接收所有�
 //等待连接 //进程阻塞 被动接收 接收连接请求 每一个accept为一个进程  多个进程发送连接请求时需要创建多个accept
 int accept(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 /*
-			 sockfd 侦听套接字描述符
+	    sockfd 侦听套接字描述符
         addr 输出连接请求发送方的地址信息
         addrlen 输出连接请求发起方的地址信息字节数
         失败返回-1
@@ -3274,7 +3594,7 @@ close(sockfd);
     char buf[128] = {};
     fgets(buf, sizeof(buf), stdin);
     //发送给服务器  服务器返回大写消息
-    //数据！退出循环
+    //输入数据"！"退出循环
     
     if(strcmp(buf, "!\n"))
     {
@@ -3374,7 +3694,7 @@ close(sockfd);
   }
   //准备地址结构 包括 地址族 ip地址  端口号
   struct sockaddr_int ser;
-  ser.sin_family = AF_INET; //基于IPV4的同学
+  ser.sin_family = AF_INET; //基于IPV4的协议组
   ser.sin_port = htons(8888); //字节序转换
   ser.sin_addr.s_addr = inet_addr("192.168.222.128");//将字符串转换为整数
   //若端口号被占用  则绑定地址时会报错
@@ -3408,6 +3728,7 @@ close(sockfd);
   struct sockaddr_in cli;
   socklen_t len = sizeof(cli);
   int conn = accept(sockfd， (struct sockaddr*)&cli, &len); //通信套接字
+//当客户端发送一个socket过来以后，服务器往该socket里面写数据，然后返回给客户端
   if(conn == -1)
   {
     perror("accept");
@@ -3421,7 +3742,7 @@ close(sockfd);
     perror("fork");
     return -1;
   }
-  if (pid == 0)
+  if (pid == 0) //子进程
   {
     close(sockfd);
     for(;;)
@@ -3550,13 +3871,11 @@ int main(void)
   close(sockfd);
 }
 
-
-
 //客户端
 //创建套接字
 int main(void)
 {
-	printf("客户端:创建套接字\n");
+  printf("客户端:创建套接字\n");
   int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
   if(sockfd == -1)
   {
@@ -3653,8 +3972,6 @@ int main(int argc, char* argv[])
 
 
 
-
-
 # HTTP协议
 
 应用层协议
@@ -3675,8 +3992,6 @@ int main(int argc, char* argv[])
 
 服务器接收到/后 返回该服务器的首页文件
 
-
-
 > accept 主类型加子类型   
 >
 > 每一种拓展名的文件都由一个主类型加上子类型构成 邮箱拓展类型
@@ -3694,17 +4009,11 @@ int main(int argc, char* argv[])
 
 结束\r\n  请求的末尾\r\n \r\n
 
-
-
 ## 响应头
-
-
 
 ![image-20240115221853796](C++.assets/image-20240115221853796.png)
 
 ![image-20240115222243131](C++.assets/image-20240115222243131.png)
-
-
 
 状态码 200 OK  404 NOT FOUND  400 协议格式错误  
 
@@ -3787,10 +4096,6 @@ int main(int argc, char* argv[]) //命令行参数 输入百度域名地址 百�
 
 \r\n  == ^M
 
-
-
-
-
 # 密码学
 
 ## OPENSSL加密的方式
@@ -3856,10 +4161,8 @@ TLS 传输层套接字协议
 
 - 反序列化 -> 解码
 
-  - 接收到序列化的特殊字符串 -> 解析	-> 原始数据
+  - 接收到序列化的特殊字符串 -> 解析-> 原始数据
   - 安装业务需求处理原始数据
-
-  
 
   ## 套接字通信
 
@@ -4216,16 +4519,5 @@ HASH算法不能称为加密算法 因为加密后 不能还原
 在DES算法中 输入密文K（64）位，去除校验位 得到64位秘钥
 
 因为在DES算法中 密文长度与明文长度相同 且每八位一组 64位刚好除尽 所以会添加八位校验位也就是72位 72位减去八位得64位
-
-
-
-
-
-
-
-
-
-x
-
 
 
